@@ -1,35 +1,37 @@
 {
-    "name": "Garden",
-    "box": {
-        "location": {
-            "x": 0,
-            "y": 0,
-            "z": 0
-        },
-        "size": {
-            "x": 168,
-            "y": 264,
-            "z": 0
-        }
-    },
-    "features": [
-        {
-            "name": "PotatoRow",
-            "box": {
-                "location":{
-                    "x": 0,
-                    "y": 0,
-                    "z": 0
-                },
-                "size": {
-                    "x": 9,
-                    "y": 264,
-                    "z": 0
-                }
+    "name": "Layout1",
+    "root_feature": {
+        "name": "Garden",
+        "box": {
+            "location": {
+                "x": 0,
+                "y": 0,
+                "z": 0
             },
-            "plant_type_id": 1,
-            "features": [
-            ]
-        }
-    ]
+            "size": {
+                "x": 168,
+                "y": 264,
+                "z": 0
+            }
+        },
+        "features": [
+            {
+                "name": "PotatoRow",
+                "box": {
+                    "location": {
+                        "x": 0,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "size": {
+                        "x": 9,
+                        "y": 264,
+                        "z": 0
+                    }
+                },
+                "plant_type_id": 1,
+                "features": []
+            }
+        ]
+    }
 }
