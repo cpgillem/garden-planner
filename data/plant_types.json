@@ -1,0 +1,21 @@
+[
+    {
+        "id": 1,
+        "name": "Potato",
+        "row_spacing": 18,
+        "spread": 18,
+        "interactions": [
+            {
+                "target_plant": 2,
+                "interaction_type": 1
+            }
+        ]
+    },
+    {
+        "id": 2,
+        "name": "Bean",
+        "row_spacing": 18,
+        "spread": 18,
+        "interactions": []
+    }
+]

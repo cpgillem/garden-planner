@@ -8,6 +8,7 @@ const (
 
 // Defines whether the target plant is good or bad to plant next to a subject plant.
 type PlantInteraction struct {
-	TargetPlant     *PlantType
-	InteractionType uint16
+	targetPlantId   int        `json:"target_plant"`
+	TargetPlant     *PlantType `json:"-"`
+	InteractionType uint16     `json:"interaction_type"`
 }

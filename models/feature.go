@@ -5,7 +5,8 @@ import "github.com/cpgillem/garden-planner/geometry"
 // A landscaping feature, such as a row of plants, planter, garden bed, tree, or obstacle.
 // The whole yard, fenced off area, etc. can serve as the root feature.
 type Feature struct {
-	geometry.AxisAlignedBoundingBox
+	Box  geometry.AxisAlignedBoundingBox `json:"box"`
+	Name string                          `json:"name"`
 	// Child features, if any. Coordinates for AABBs are relative.
-	Features []Feature
+	Features []Feature `json:"features"`
 }
