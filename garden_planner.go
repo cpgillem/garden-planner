@@ -18,9 +18,9 @@ type GardenPlanner struct {
 	Window fyne.Window
 
 	// Containers
-	MainContainer   *fyne.Container
-	Sidebar         *fyne.Container
-	GardenContainer *fyne.Container
+	MainContainer *fyne.Container
+	Sidebar       *fyne.Container
+	Content       *fyne.Container
 
 	// Permanent Widgets
 	Toolbar   *widget.Toolbar
@@ -39,11 +39,13 @@ func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 	instance.currentPlan = plan
 
 	// Create feature widgets.
+	gardenContainer := container.New(ui.NewGardenLayout(plan))
 	for _, feature := range plan.Features {
 		featureWidget := ui.NewFeatureWidget(&feature)
-		instance.GardenContainer.Add(featureWidget)
+		gardenContainer.Add(featureWidget)
 	}
-	instance.GardenContainer.Refresh()
+	instance.Content.Add(gardenContainer)
+	gardenContainer.Refresh()
 
 	// Setup Sidebar
 	featureList := widget.NewList(
@@ -75,7 +77,7 @@ func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 
 // Cleans up the UI elements depending on a current plan.
 func (instance *GardenPlanner) ClosePlan() {
-	instance.GardenContainer.RemoveAll()
+	instance.Content.RemoveAll()
 	instance.Sidebar.RemoveAll()
 	instance.currentPlan = nil
 }
@@ -86,11 +88,10 @@ func NewGardenPlanner() *GardenPlanner {
 	mainApp := app.New()
 	mainWindow := mainApp.NewWindow("Garden Planner")
 	sidebar := container.NewVBox()
-	gardenContainer := container.New(&ui.GardenLayout{})
-	// gardenContainer := container.NewCenter()
+	content := container.NewVBox()
 	toolbar := widget.NewToolbar()
 	statusBar := widget.NewLabel("")
-	mainContainer := container.NewBorder(toolbar, nil, sidebar, nil, gardenContainer)
+	mainContainer := container.NewBorder(toolbar, nil, sidebar, nil, content)
 
 	// Setup Toolbar
 	toolbar.Append(widget.NewToolbarAction(theme.DocumentCreateIcon(), func() {
@@ -106,14 +107,14 @@ func NewGardenPlanner() *GardenPlanner {
 
 	// Create new app instance
 	gardenPlanner := GardenPlanner{
-		currentPlan:     nil,
-		App:             mainApp,
-		Window:          mainWindow,
-		MainContainer:   mainContainer,
-		Sidebar:         sidebar,
-		Toolbar:         toolbar,
-		StatusBar:       statusBar,
-		GardenContainer: gardenContainer,
+		currentPlan:   nil,
+		App:           mainApp,
+		Window:        mainWindow,
+		MainContainer: mainContainer,
+		Sidebar:       sidebar,
+		Toolbar:       toolbar,
+		StatusBar:     statusBar,
+		Content:       content,
 	}
 
 	return &gardenPlanner

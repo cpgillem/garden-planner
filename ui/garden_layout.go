@@ -1,34 +1,34 @@
 package ui
 
-import "fyne.io/fyne/v2"
+import (
+	"fyne.io/fyne/v2"
+	"github.com/cpgillem/garden-planner/models"
+)
 
 type GardenLayout struct {
+	Plan  *models.Plan
+	Scale float32
 }
 
 // Layout implements fyne.Layout.
 func (g *GardenLayout) Layout(objects []fyne.CanvasObject, containerSize fyne.Size) {
-	pos := fyne.NewPos(0, containerSize.Height-g.MinSize(objects).Height)
 	for _, o := range objects {
-		size := o.MinSize()
-		o.Resize(size)
-		o.Move(pos)
+		featureWidget := o.(*FeatureWidget)
 
-		pos = pos.Add(fyne.NewPos(size.Width, size.Height))
+		o.Resize(featureWidget.Feature.Box.Size.Scale(g.Scale).ToSize())
+		o.Move(featureWidget.Feature.Box.Location.Scale(g.Scale).ToPosition())
 	}
 }
 
 // MinSize implements fyne.Layout.
 func (g *GardenLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
-	w, h := float32(0), float32(0)
-	for _, o := range objects {
-		childSize := o.MinSize()
-
-		w += childSize.Width
-		h += childSize.Height
-	}
-	return fyne.NewSize(w, h)
+	return g.Plan.Box.Size.Scale(g.Scale).ToSize()
 }
 
-func NewGardenLayout() *GardenLayout {
-	return &GardenLayout{}
+func NewGardenLayout(plan *models.Plan) *GardenLayout {
+	return &GardenLayout{
+		Plan: plan,
+		// Default to 2 pixels per inch for now
+		Scale: 2,
+	}
 }

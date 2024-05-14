@@ -6,3 +6,7 @@ type AxisAlignedBoundingBox struct {
 	Location Vector
 	Size     Vector
 }
+
+func (aabb *AxisAlignedBoundingBox) IsVertical() bool {
+	return aabb.Size.Y >= aabb.Size.X
+}
