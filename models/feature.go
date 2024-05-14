@@ -7,6 +7,4 @@ import "github.com/cpgillem/garden-planner/geometry"
 type Feature struct {
 	Box  geometry.AxisAlignedBoundingBox `json:"box"`
 	Name string                          `json:"name"`
-	// Child features, if any. Coordinates for AABBs are relative.
-	Features []Feature `json:"features"`
 }

@@ -27,13 +27,7 @@ type GardenPlanner struct {
 	StatusBar *widget.Label
 
 	// Data
-	currentPlan *Plan
-}
-
-// Represents a garden plan loaded from a JSON file.
-type Plan struct {
-	Name        string         `json:"name"`
-	RootFeature models.Feature `json:"root_feature"`
+	currentPlan *models.Plan
 }
 
 func (p *GardenPlanner) Start() {
@@ -41,13 +35,15 @@ func (p *GardenPlanner) Start() {
 	p.App.Run()
 }
 
-func (instance *GardenPlanner) OpenPlan(plan *Plan) {
+func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 	instance.currentPlan = plan
 
-	// Create a feature widget.
-	featureWidget := ui.NewFeatureWidget(&instance.currentPlan.RootFeature)
-
-	instance.GardenContainer.Add(featureWidget)
+	// Create feature widgets.
+	for _, feature := range plan.Features {
+		featureWidget := ui.NewFeatureWidget(&feature)
+		instance.GardenContainer.Add(featureWidget)
+	}
+	instance.GardenContainer.Refresh()
 
 	// Setup Sidebar
 	featureList := widget.NewList(
@@ -56,17 +52,23 @@ func (instance *GardenPlanner) OpenPlan(plan *Plan) {
 			if instance.currentPlan == nil {
 				return 0
 			}
-			return int(len(instance.currentPlan.RootFeature.Features))
+			return int(len(instance.currentPlan.Features))
 		},
 		// Create
 		func() fyne.CanvasObject {
-			return widget.NewLabel("")
+			// Fix later: why doesn't fyne refresh the width of the sidebar properly?
+			label := widget.NewLabel("aaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+			label.Truncation = fyne.TextTruncateOff
+			return label
 		},
 		// Update
 		func(id widget.ListItemID, o fyne.CanvasObject) {
-			o.(*widget.Label).SetText(instance.currentPlan.RootFeature.Features[id].Name)
+			obj := o.(*widget.Label)
+			obj.SetText(instance.currentPlan.Features[id].Name)
 		},
 	)
+
+	featureList.Refresh()
 
 	instance.Sidebar.Add(featureList)
 }
@@ -78,12 +80,14 @@ func (instance *GardenPlanner) ClosePlan() {
 	instance.currentPlan = nil
 }
 
+// Creates a new instance of the app.
 func NewGardenPlanner() *GardenPlanner {
 	// Setup UI elements
 	mainApp := app.New()
 	mainWindow := mainApp.NewWindow("Garden Planner")
 	sidebar := container.NewVBox()
 	gardenContainer := container.New(&ui.GardenLayout{})
+	// gardenContainer := container.NewCenter()
 	toolbar := widget.NewToolbar()
 	statusBar := widget.NewLabel("")
 	mainContainer := container.NewBorder(toolbar, nil, sidebar, nil, gardenContainer)
@@ -109,7 +113,7 @@ func NewGardenPlanner() *GardenPlanner {
 		Sidebar:         sidebar,
 		Toolbar:         toolbar,
 		StatusBar:       statusBar,
-		GardenContainer: container.New(&ui.GardenLayout{}),
+		GardenContainer: gardenContainer,
 	}
 
 	return &gardenPlanner

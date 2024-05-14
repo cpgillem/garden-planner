@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/cpgillem/garden-planner/models"
 )
 
 // Open a file as a garden plan.
 // TODO: Genericize this to open any JSON file to avoid
 // repeating file opening idioms.
-func LoadPlan(path string) (*Plan, error) {
+func LoadPlan(path string) (*models.Plan, error) {
 	f, err := os.Open(path)
 
 	if err != nil {
@@ -27,7 +29,7 @@ func LoadPlan(path string) (*Plan, error) {
 		return nil, err
 	}
 
-	var plan Plan
+	var plan models.Plan
 
 	err = json.Unmarshal(content, &plan)
 
