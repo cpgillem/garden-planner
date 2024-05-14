@@ -7,7 +7,7 @@ func main() {
 	// Setup application data.
 	// For now, load the test file.
 	plan, _ := LoadPlan("test_data/layout1.json")
-	gardenPlanner.SetPlan(plan)
+	gardenPlanner.OpenPlan(plan)
 
 	// Display UI.
 	gardenPlanner.Start()
