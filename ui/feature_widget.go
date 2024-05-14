@@ -27,6 +27,7 @@ func NewFeatureWidget(feature *models.Feature) *FeatureWidget {
 	}
 
 	featureWidget.Border.StrokeColor = colornames.Black
+	featureWidget.Border.StrokeWidth = 1
 	featureWidget.Label.Truncation = fyne.TextTruncateOff
 	featureWidget.Label.Alignment = fyne.TextAlignCenter
 

@@ -1,11 +1,10 @@
 package main
 
 import (
-	"fmt"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/cpgillem/garden-planner/models"
@@ -36,6 +35,7 @@ func (p *GardenPlanner) Start() {
 }
 
 func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
+	instance.ClosePlan()
 	instance.currentPlan = plan
 
 	// Create feature widgets.
@@ -93,16 +93,6 @@ func NewGardenPlanner() *GardenPlanner {
 	statusBar := widget.NewLabel("")
 	mainContainer := container.NewBorder(toolbar, nil, sidebar, nil, content)
 
-	// Setup Toolbar
-	toolbar.Append(widget.NewToolbarAction(theme.DocumentCreateIcon(), func() {
-
-	}))
-	toolbar.Append(widget.NewToolbarAction(theme.FolderOpenIcon(), func() {
-		fmt.Println("Clicked")
-	}))
-	toolbar.Append(widget.NewToolbarAction(theme.DocumentSaveIcon(), func() {}))
-	toolbar.Append(widget.NewToolbarSeparator())
-
 	mainWindow.SetContent(mainContainer)
 
 	// Create new app instance
@@ -116,6 +106,33 @@ func NewGardenPlanner() *GardenPlanner {
 		StatusBar:     statusBar,
 		Content:       content,
 	}
+
+	// Setup Toolbar
+	createButton := widget.NewToolbarAction(theme.DocumentCreateIcon(), func() {
+		// Open an empty plan.
+		gardenPlanner.OpenPlan(&models.Plan{})
+	})
+	toolbar.Append(createButton)
+	toolbar.Append(widget.NewToolbarAction(theme.FolderOpenIcon(), func() {
+		// Display the file open dialog.
+		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if reader != nil {
+				// Read the plan and open it.
+				plan, _ := ReadObject[models.Plan](reader)
+				gardenPlanner.OpenPlan(plan)
+			}
+		}, gardenPlanner.Window)
+	}))
+	toolbar.Append(widget.NewToolbarAction(theme.DocumentSaveIcon(), func() {
+		// Display the file save dialog.
+		dialog.ShowFileSave(func(writer fyne.URIWriteCloser, err error) {
+			if writer != nil {
+				// Save the plan.
+				WriteObject(writer, gardenPlanner.currentPlan)
+			}
+		}, gardenPlanner.Window)
+	}))
+	toolbar.Append(widget.NewToolbarSeparator())
 
 	return &gardenPlanner
 }
