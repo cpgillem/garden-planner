@@ -22,3 +22,6 @@ go.work
 go.work.sum
 
 .vscode
+
+# Binary for this project
+garden-planner
