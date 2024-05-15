@@ -1,0 +1,9 @@
+[
+    {
+        "name": "plant",
+        "properties": [
+            "plant_spacing",
+            "row_width"
+        ]
+    }
+]

@@ -1,0 +1,12 @@
+[
+    {
+        "name": "row_width",
+        "display_name": "Row Width",
+        "description": "Width of row of plants. Should be equal to the plant's spread."
+    },
+    {
+        "name": "plant_spacing",
+        "display_name": "Plant Spacing",
+        "description": "Spacing between plants. Should be equal to the plant's spread, plus desired breathing room."
+    }
+]

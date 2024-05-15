@@ -10,6 +10,11 @@ type PlantType struct {
 	// Minimum spacing between rows in inches
 	RowSpacing uint16 `json:"row_spacing"`
 	// Plant spread, in inches, as a radius
-	Spread       uint16             `json:"spread"`
+	Spread uint16 `json:"spread"`
+	// Water requirements, expressed in gallons per watering.
+	WaterRequirement float32 `json:"water_requirement"`
+	// Watering frequency, expressed in waterings per week.
+	WaterFrequency uint16 `json:"water_frequency"`
+	// List of interactions with other plant types for intercropping.
 	Interactions []PlantInteraction `json:"interactions"`
 }

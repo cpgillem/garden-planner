@@ -61,6 +61,7 @@ func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 			// Fix later: why doesn't fyne refresh the width of the sidebar properly?
 			label := widget.NewLabel("aaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 			label.Truncation = fyne.TextTruncateOff
+
 			return label
 		},
 		// Update
@@ -70,9 +71,12 @@ func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 		},
 	)
 
+	propertyTable := container.NewGridWithColumns(2)
+
 	featureList.Refresh()
 
 	instance.Sidebar.Add(featureList)
+	instance.Sidebar.Add(propertyTable)
 }
 
 // Cleans up the UI elements depending on a current plan.
