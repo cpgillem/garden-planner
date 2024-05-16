@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-
-	"github.com/cpgillem/garden-planner/models"
 )
 
 // Reads a plan from a reader.
@@ -24,12 +22,13 @@ func ReadObject[T any](r io.ReadCloser) (*T, error) {
 	return DecodeObject[T](content)
 }
 
-// Load a plan from a byte slice.
+// Load an object from a byte slice.
 func DecodeObject[T any](content []byte) (*T, error) {
 	var o T
 	err := json.Unmarshal(content, &o)
 	if err != nil {
 		fmt.Println("Could not parse JSON.\n" + err.Error())
+		return nil, err
 	}
 
 	return &o, nil
@@ -66,46 +65,28 @@ func WriteObject[T any](w io.WriteCloser, o T) error {
 }
 
 // Save a garden plan or create a new one.
-func SavePlanToFile(plan *models.Plan, path string) error {
-	// Encode to JSON.
-	content, _ := EncodeObject(plan)
-
+func WriteObjectToFile[T any](o *T, path string) error {
 	// Create/truncate file.
 	f, err := os.Create(path)
 	if err != nil {
-		fmt.Println("Could not open file to save to.\n" + err.Error())
+		fmt.Println("Could not open file to save to.\nPath: " + path + "\n" + err.Error())
 		return err
 	}
 	defer f.Close()
 
 	// Write to file.
-	_, err = f.Write(content)
-	if err != nil {
-		fmt.Println("Could not save file.\n" + err.Error())
-		return err
-	}
-	f.Sync()
-
-	return nil
+	return WriteObject(f, o)
 }
 
-// Open a file as a garden plan.
-func LoadPlanFromFile(path string) (*models.Plan, error) {
+// Open a file as an object.
+func ReadObjectFromFile[T any](path string) (*T, error) {
 	// Open file for reading.
 	f, err := os.Open(path)
 	if err != nil {
-		fmt.Println("Could not load plan from " + path + "\n" + err.Error())
+		fmt.Println("Could not load from " + path + "\n" + err.Error())
 		return nil, err
 	}
 	defer f.Close()
 
-	// Read content into byte slice.
-	content, err := io.ReadAll(f)
-	if err != nil {
-		fmt.Println("Could not read file: " + path + "\n" + err.Error())
-		return nil, err
-	}
-
-	// Decode plan.
-	return DecodeObject[models.Plan](content)
+	return ReadObject[T](f)
 }

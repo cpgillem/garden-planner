@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"strconv"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
@@ -22,11 +25,14 @@ type GardenPlanner struct {
 	Content       *fyne.Container
 
 	// Permanent Widgets
-	Toolbar   *widget.Toolbar
-	StatusBar *widget.Label
+	Toolbar       *widget.Toolbar
+	StatusBar     *widget.Label
+	PropertyTable *fyne.Container
+	FeatureList   *widget.List
 
 	// Data
-	currentPlan *models.Plan
+	CurrentPlan *models.Plan
+	GardenData  *GardenData
 }
 
 func (p *GardenPlanner) Start() {
@@ -36,7 +42,7 @@ func (p *GardenPlanner) Start() {
 
 func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 	instance.ClosePlan()
-	instance.currentPlan = plan
+	instance.CurrentPlan = plan
 
 	// Create feature widgets.
 	gardenContainer := container.New(ui.NewGardenLayout(plan))
@@ -47,47 +53,109 @@ func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 	instance.Content.Add(gardenContainer)
 	gardenContainer.Refresh()
 
-	// Setup Sidebar
-	featureList := widget.NewList(
-		// Length
-		func() int {
-			if instance.currentPlan == nil {
-				return 0
+	// Setup Feature List
+
+	// Feature length comes from the plan.
+	featuresLength := func() int {
+		if instance.CurrentPlan == nil {
+			return 0
+		}
+		return int(len(instance.CurrentPlan.Features))
+	}
+
+	// When a feature is added, create a label.
+	createFeature := func() fyne.CanvasObject {
+		// Fix later: why doesn't fyne refresh the width of the sidebar properly?
+		label := widget.NewLabel("aaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+
+		return label
+	}
+
+	// When a feature is updated, set its text.
+	updateFeature := func(id widget.ListItemID, o fyne.CanvasObject) {
+		obj := o.(*widget.Label)
+		obj.SetText(instance.CurrentPlan.Features[id].Name)
+	}
+
+	// Recreate feature list. Fyne doesn't have an obvious way to remove an item.
+	instance.FeatureList = widget.NewList(featuresLength, createFeature, updateFeature)
+
+	// When a feature is selected, display its properties.
+	instance.FeatureList.OnSelected = func(id widget.ListItemID) {
+		instance.SelectFeature(&instance.CurrentPlan.Features[id], instance.GardenData.Properties)
+	}
+
+	instance.FeatureList.Refresh()
+
+	instance.Sidebar.Add(instance.FeatureList)
+	instance.Sidebar.Add(instance.PropertyTable)
+}
+
+// Updates the GUI when a feature is selected.
+func (instance *GardenPlanner) SelectFeature(feature *models.Feature, properties map[string]models.Property) {
+	instance.PropertyTable.RemoveAll()
+
+	for propertyName := range feature.Properties {
+		label := widget.NewLabel(properties[propertyName].DisplayName)
+		entry := instance.CreatePropertyWidget(properties[propertyName], feature)
+		instance.PropertyTable.Add(label)
+		instance.PropertyTable.Add(entry)
+	}
+
+	instance.PropertyTable.Refresh()
+}
+
+// Creates a widget for modifying a property on a feature.
+func (instance *GardenPlanner) CreatePropertyWidget(property models.Property, feature *models.Feature) *widget.Entry {
+	// TODO: Custom widgets for property types.
+	value := feature.Properties[property.Name]
+	str := ""
+
+	switch property.PropertyType {
+	case "dimension", "decimal":
+		str = fmt.Sprintf("%.3f", value)
+	case "text":
+		str = value.(string)
+	case "integer":
+		str = strconv.Itoa(value.(int))
+	}
+	entry := widget.NewEntry()
+	entry.SetText(str)
+
+	// Setup events.
+	entry.OnChanged = func(s string) {
+		switch property.PropertyType {
+		case "dimension", "decimal":
+			setValue, err := strconv.ParseFloat(s, 32)
+			if err != nil {
+				dialog.ShowInformation("Error", "Invalid number.", instance.Window)
+				break
 			}
-			return int(len(instance.currentPlan.Features))
-		},
-		// Create
-		func() fyne.CanvasObject {
-			// Fix later: why doesn't fyne refresh the width of the sidebar properly?
-			label := widget.NewLabel("aaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-			label.Truncation = fyne.TextTruncateOff
+			feature.Properties[property.Name] = setValue
+		case "text":
+			feature.Properties[property.Name] = s
+		case "integer":
+			setValue, err := strconv.Atoi(s)
+			if err != nil {
+				dialog.ShowInformation("Error", "Invalid number.", instance.Window)
+				break
+			}
+			feature.Properties[property.Name] = setValue
+		}
+	}
 
-			return label
-		},
-		// Update
-		func(id widget.ListItemID, o fyne.CanvasObject) {
-			obj := o.(*widget.Label)
-			obj.SetText(instance.currentPlan.Features[id].Name)
-		},
-	)
-
-	propertyTable := container.NewGridWithColumns(2)
-
-	featureList.Refresh()
-
-	instance.Sidebar.Add(featureList)
-	instance.Sidebar.Add(propertyTable)
+	return entry
 }
 
 // Cleans up the UI elements depending on a current plan.
 func (instance *GardenPlanner) ClosePlan() {
 	instance.Content.RemoveAll()
 	instance.Sidebar.RemoveAll()
-	instance.currentPlan = nil
+	instance.CurrentPlan = nil
 }
 
 // Creates a new instance of the app.
-func NewGardenPlanner() *GardenPlanner {
+func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 	// Setup UI elements
 	mainApp := app.New()
 	mainWindow := mainApp.NewWindow("Garden Planner")
@@ -96,12 +164,14 @@ func NewGardenPlanner() *GardenPlanner {
 	toolbar := widget.NewToolbar()
 	statusBar := widget.NewLabel("")
 	mainContainer := container.NewBorder(toolbar, nil, sidebar, nil, content)
+	featureList := widget.NewList(func() int { return 0 }, func() fyne.CanvasObject { return widget.NewLabel("") }, func(lii widget.ListItemID, co fyne.CanvasObject) {})
+	propertyTable := container.NewGridWithColumns(2)
 
 	mainWindow.SetContent(mainContainer)
 
 	// Create new app instance
 	gardenPlanner := GardenPlanner{
-		currentPlan:   nil,
+		CurrentPlan:   nil,
 		App:           mainApp,
 		Window:        mainWindow,
 		MainContainer: mainContainer,
@@ -109,6 +179,9 @@ func NewGardenPlanner() *GardenPlanner {
 		Toolbar:       toolbar,
 		StatusBar:     statusBar,
 		Content:       content,
+		FeatureList:   featureList,
+		PropertyTable: propertyTable,
+		GardenData:    gardenData,
 	}
 
 	// Setup Toolbar
@@ -132,7 +205,7 @@ func NewGardenPlanner() *GardenPlanner {
 		dialog.ShowFileSave(func(writer fyne.URIWriteCloser, err error) {
 			if writer != nil {
 				// Save the plan.
-				WriteObject(writer, gardenPlanner.currentPlan)
+				WriteObject(writer, gardenPlanner.CurrentPlan)
 			}
 		}, gardenPlanner.Window)
 	}))

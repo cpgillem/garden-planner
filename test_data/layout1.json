@@ -27,8 +27,10 @@
                     "z": 0
                 }
             },
-            "plant_type_id": 1,
-            "features": []
+            "properties": {
+                "plant_spacing": 18,
+                "row_width": 18
+            }
         }
     ]
 }

@@ -1,7 +1,8 @@
 package models
 
 type Property struct {
-	Name        string
-	DisplayName string
-	Description string
+	Name         string `json:"name"`
+	DisplayName  string `json:"display_name"`
+	Description  string `json:"description"`
+	PropertyType string `json:"property_type"`
 }
