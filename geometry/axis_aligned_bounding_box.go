@@ -10,3 +10,10 @@ type AxisAlignedBoundingBox struct {
 func (aabb *AxisAlignedBoundingBox) IsVertical() bool {
 	return aabb.Size.Y >= aabb.Size.X
 }
+
+func NewBox() AxisAlignedBoundingBox {
+	return AxisAlignedBoundingBox{
+		Location: NewVector(0, 0, 0),
+		Size:     NewVector(0, 0, 0),
+	}
+}

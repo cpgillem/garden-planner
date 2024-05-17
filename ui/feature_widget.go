@@ -19,8 +19,8 @@ type FeatureWidget struct {
 }
 
 // Create a new widget representing a landscaping feature.
-func NewFeatureWidget(feature *models.Feature) *FeatureWidget {
-	featureWidget := &FeatureWidget{
+func NewFeatureWidget(feature *models.Feature) FeatureWidget {
+	featureWidget := FeatureWidget{
 		Label:   widget.NewLabelWithData(binding.BindString(&feature.Name)),
 		Border:  canvas.NewRectangle(colornames.Lawngreen),
 		Feature: feature,
@@ -31,7 +31,7 @@ func NewFeatureWidget(feature *models.Feature) *FeatureWidget {
 	featureWidget.Label.Truncation = fyne.TextTruncateOff
 	featureWidget.Label.Alignment = fyne.TextAlignCenter
 
-	featureWidget.ExtendBaseWidget(featureWidget)
+	featureWidget.ExtendBaseWidget(&featureWidget)
 
 	return featureWidget
 }

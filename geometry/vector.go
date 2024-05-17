@@ -8,6 +8,14 @@ type Vector struct {
 	X, Y, Z float32
 }
 
+func NewVector(x, y, z float32) Vector {
+	return Vector{
+		X: x,
+		Y: y,
+		Z: z,
+	}
+}
+
 func (v *Vector) Scale(scalar float32) *Vector {
 	return &Vector{
 		X: v.X * scalar,

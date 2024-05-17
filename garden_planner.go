@@ -22,7 +22,7 @@ type GardenPlanner struct {
 	// Containers
 	MainContainer *fyne.Container
 	Sidebar       *fyne.Container
-	Content       *fyne.Container
+	GardenWidget  *ui.GardenWidget
 
 	// Permanent Widgets
 	Toolbar       *widget.Toolbar
@@ -44,17 +44,7 @@ func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 	instance.ClosePlan()
 	instance.CurrentPlan = plan
 
-	// Create feature widgets.
-	gardenContainer := container.New(ui.NewGardenLayout(plan))
-	for _, feature := range plan.Features {
-		featureWidget := ui.NewFeatureWidget(&feature)
-		gardenContainer.Add(featureWidget)
-	}
-	instance.Content.Add(gardenContainer)
-	gardenContainer.Refresh()
-
 	// Setup Feature List
-
 	// Feature length comes from the plan.
 	featuresLength := func() int {
 		if instance.CurrentPlan == nil {
@@ -77,7 +67,7 @@ func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 		obj.SetText(instance.CurrentPlan.Features[id].Name)
 	}
 
-	// Recreate feature list. Fyne doesn't have an obvious way to remove an item.
+	// Recreate feature list to clear it.
 	instance.FeatureList = widget.NewList(featuresLength, createFeature, updateFeature)
 
 	// When a feature is selected, display its properties.
@@ -89,11 +79,15 @@ func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 
 	instance.Sidebar.Add(instance.FeatureList)
 	instance.Sidebar.Add(instance.PropertyTable)
+
+	// Setup garden viewer widget.
+	instance.GardenWidget.OpenPlan(plan)
 }
 
 // Updates the GUI when a feature is selected.
 func (instance *GardenPlanner) SelectFeature(feature *models.Feature, properties map[string]models.Property) {
 	instance.PropertyTable.RemoveAll()
+	instance.AddFeatureProperties(feature)
 
 	for propertyName := range feature.Properties {
 		label := widget.NewLabel(properties[propertyName].DisplayName)
@@ -103,6 +97,24 @@ func (instance *GardenPlanner) SelectFeature(feature *models.Feature, properties
 	}
 
 	instance.PropertyTable.Refresh()
+}
+
+// Adds the base properties of any landscaping feature to the properties panel.
+func (instance *GardenPlanner) AddFeatureProperties(feature *models.Feature) {
+	nameLabel := widget.NewLabel("Name")
+	boxLabel := widget.NewLabel("Box")
+
+	nameEntry := widget.NewEntry()
+	nameEntry.SetText(feature.Name)
+	nameEntry.OnSubmitted = func(s string) {
+		feature.Name = s
+		instance.FeatureList.Refresh()
+		instance.GardenWidget.Refresh()
+	}
+
+	instance.PropertyTable.Add(nameLabel)
+	instance.PropertyTable.Add(nameEntry)
+	instance.PropertyTable.Add(boxLabel)
 }
 
 // Creates a widget for modifying a property on a feature.
@@ -123,7 +135,7 @@ func (instance *GardenPlanner) CreatePropertyWidget(property models.Property, fe
 	entry.SetText(str)
 
 	// Setup events.
-	entry.OnChanged = func(s string) {
+	entry.OnSubmitted = func(s string) {
 		switch property.PropertyType {
 		case "dimension", "decimal":
 			setValue, err := strconv.ParseFloat(s, 32)
@@ -149,9 +161,10 @@ func (instance *GardenPlanner) CreatePropertyWidget(property models.Property, fe
 
 // Cleans up the UI elements depending on a current plan.
 func (instance *GardenPlanner) ClosePlan() {
-	instance.Content.RemoveAll()
-	instance.Sidebar.RemoveAll()
-	instance.CurrentPlan = nil
+	// instance.Content.RemoveAll()
+	instance.FeatureList = widget.NewList(func() int { return 0 }, func() fyne.CanvasObject { return widget.NewLabel("") }, func(lii widget.ListItemID, co fyne.CanvasObject) {})
+	instance.PropertyTable.RemoveAll()
+	instance.CurrentPlan = &models.Plan{}
 }
 
 // Creates a new instance of the app.
@@ -160,10 +173,10 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 	mainApp := app.New()
 	mainWindow := mainApp.NewWindow("Garden Planner")
 	sidebar := container.NewVBox()
-	content := container.NewVBox()
+	gardenWidget := ui.NewGardenWidget(models.NewPlan())
 	toolbar := widget.NewToolbar()
 	statusBar := widget.NewLabel("")
-	mainContainer := container.NewBorder(toolbar, nil, sidebar, nil, content)
+	mainContainer := container.NewBorder(toolbar, nil, sidebar, nil, gardenWidget)
 	featureList := widget.NewList(func() int { return 0 }, func() fyne.CanvasObject { return widget.NewLabel("") }, func(lii widget.ListItemID, co fyne.CanvasObject) {})
 	propertyTable := container.NewGridWithColumns(2)
 
@@ -178,7 +191,7 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 		Sidebar:       sidebar,
 		Toolbar:       toolbar,
 		StatusBar:     statusBar,
-		Content:       content,
+		GardenWidget:  gardenWidget,
 		FeatureList:   featureList,
 		PropertyTable: propertyTable,
 		GardenData:    gardenData,

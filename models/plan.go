@@ -7,3 +7,11 @@ type Plan struct {
 	Box      geometry.AxisAlignedBoundingBox `json:"box"`
 	Features []Feature                       `json:"features"`
 }
+
+func NewPlan() *Plan {
+	return &Plan{
+		Name:     "",
+		Box:      geometry.NewBox(),
+		Features: []Feature{},
+	}
+}
