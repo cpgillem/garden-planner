@@ -21,7 +21,7 @@ type GardenWidget struct {
 // Create a new feature widget.
 func (g *GardenWidget) addFeature(feature *models.Feature) {
 	fw := NewFeatureWidget(feature)
-	g.container.Add(&fw)
+	g.container.Add(fw)
 }
 
 // Opens a plan for viewing.
