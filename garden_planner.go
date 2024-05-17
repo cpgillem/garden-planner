@@ -72,7 +72,7 @@ func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 
 	// When a feature is selected, display its properties.
 	instance.FeatureList.OnSelected = func(id widget.ListItemID) {
-		instance.SelectFeature(&instance.CurrentPlan.Features[id], instance.GardenData.Properties)
+		instance.SelectFeature(&instance.CurrentPlan.Features[id])
 	}
 
 	instance.FeatureList.Refresh()
@@ -85,18 +85,19 @@ func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 }
 
 // Updates the GUI when a feature is selected.
-func (instance *GardenPlanner) SelectFeature(feature *models.Feature, properties map[string]models.Property) {
+func (instance *GardenPlanner) SelectFeature(feature *models.Feature) {
 	instance.PropertyTable.RemoveAll()
 	instance.AddFeatureProperties(feature)
 
 	for propertyName := range feature.Properties {
-		label := widget.NewLabel(properties[propertyName].DisplayName)
-		entry := instance.CreatePropertyWidget(properties[propertyName], feature)
+		label := widget.NewLabel(instance.GardenData.Properties[propertyName].DisplayName)
+		entry := instance.CreatePropertyWidget(instance.GardenData.Properties[propertyName], feature)
 		instance.PropertyTable.Add(label)
 		instance.PropertyTable.Add(entry)
 	}
 
 	instance.PropertyTable.Refresh()
+	instance.GardenWidget.Refresh()
 }
 
 // Adds the base properties of any landscaping feature to the properties panel.
@@ -154,6 +155,8 @@ func (instance *GardenPlanner) CreatePropertyWidget(property models.Property, fe
 			}
 			feature.Properties[property.Name] = setValue
 		}
+
+		instance.MainContainer.Refresh()
 	}
 
 	return entry
@@ -223,6 +226,11 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 		}, gardenPlanner.Window)
 	}))
 	toolbar.Append(widget.NewToolbarSeparator())
+
+	// Setup garden widget.
+	gardenWidget.OnFeatureTapped = func(feature *models.Feature) {
+		gardenPlanner.SelectFeature(feature)
+	}
 
 	return &gardenPlanner
 }

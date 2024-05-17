@@ -13,9 +13,20 @@ import (
 type FeatureWidget struct {
 	widget.BaseWidget
 
-	Label   *widget.Label
-	Border  *canvas.Rectangle
+	// Internal widgets
+	Label  *widget.Label
+	Border *canvas.Rectangle
+
+	// Internal data
 	Feature *models.Feature
+
+	// Events
+	OnTapped func()
+}
+
+// Implement the Tappable interface to define click behavior.
+func (fw *FeatureWidget) Tapped(e *fyne.PointEvent) {
+	fw.OnTapped()
 }
 
 // Create a new widget representing a landscaping feature.

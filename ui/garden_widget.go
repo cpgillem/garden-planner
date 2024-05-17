@@ -16,11 +16,17 @@ type GardenWidget struct {
 
 	// Internal data
 	Plan *models.Plan
+
+	// Events
+	OnFeatureTapped func(feature *models.Feature)
 }
 
 // Create a new feature widget.
 func (g *GardenWidget) addFeature(feature *models.Feature) {
 	fw := NewFeatureWidget(feature)
+	fw.OnTapped = func() {
+		g.OnFeatureTapped(fw.Feature)
+	}
 	g.container.Add(fw)
 }
 
