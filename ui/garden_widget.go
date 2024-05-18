@@ -48,8 +48,18 @@ func (g *GardenWidget) addFeature(feature *models.Feature) {
 			feature.Box.Size.X += dx
 		}
 		g.Refresh()
+		g.OnRefresh()
 	}
 	fw.OnHandleDragEnd = func() {
+		// g.Refresh()
+		// g.OnRefresh()
+	}
+	fw.OnDragged = func(e *fyne.DragEvent) {
+		feature.Box.Location = *feature.Box.Location.Add(&geometry.Vector{
+			X: e.Dragged.DX / g.layout.scale,
+			Y: e.Dragged.DY / g.layout.scale,
+			Z: 0,
+		})
 		g.Refresh()
 		g.OnRefresh()
 	}

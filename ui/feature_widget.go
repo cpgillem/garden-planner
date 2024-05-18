@@ -19,6 +19,8 @@ type FeatureWidget struct {
 	OnTapped        func()
 	OnHandleDragged func(edge geometry.BoxEdge, e *fyne.DragEvent)
 	OnHandleDragEnd func()
+	OnDragged       func(e *fyne.DragEvent)
+	OnDragEnd       func()
 }
 
 // Implement the Tappable interface to define click behavior.
@@ -26,10 +28,23 @@ func (fw *FeatureWidget) Tapped(e *fyne.PointEvent) {
 	fw.OnTapped()
 }
 
+func (fw *FeatureWidget) Dragged(e *fyne.DragEvent) {
+	fw.OnDragged(e)
+}
+
+func (fw *FeatureWidget) DragEnd() {
+	fw.OnDragEnd()
+}
+
 // Create a new widget representing a landscaping feature.
 func NewFeatureWidget(feature *models.Feature) *FeatureWidget {
 	featureWidget := FeatureWidget{
-		Feature: feature,
+		Feature:         feature,
+		OnTapped:        func() {},
+		OnHandleDragged: func(edge geometry.BoxEdge, e *fyne.DragEvent) {},
+		OnHandleDragEnd: func() {},
+		OnDragged:       func(e *fyne.DragEvent) {},
+		OnDragEnd:       func() {},
 	}
 
 	featureWidget.ExtendBaseWidget(&featureWidget)
