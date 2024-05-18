@@ -1,9 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"strconv"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
@@ -33,6 +30,7 @@ type GardenPlanner struct {
 	// Data
 	CurrentPlan *models.Plan
 	GardenData  *GardenData
+	Formatter   *ui.Formatter
 }
 
 func (p *GardenPlanner) Start() {
@@ -104,6 +102,10 @@ func (instance *GardenPlanner) SelectFeature(feature *models.Feature) {
 func (instance *GardenPlanner) AddFeatureProperties(feature *models.Feature) {
 	nameLabel := widget.NewLabel("Name")
 	boxLabel := widget.NewLabel("Box")
+	boxEditor := ui.NewBoxEditor(&feature.Box, instance.Formatter)
+	boxEditor.OnUpdate = func() {
+		instance.GardenWidget.Refresh()
+	}
 
 	nameEntry := widget.NewEntry()
 	nameEntry.SetText(feature.Name)
@@ -116,21 +118,25 @@ func (instance *GardenPlanner) AddFeatureProperties(feature *models.Feature) {
 	instance.PropertyTable.Add(nameLabel)
 	instance.PropertyTable.Add(nameEntry)
 	instance.PropertyTable.Add(boxLabel)
+	instance.PropertyTable.Add(boxEditor)
 }
 
 // Creates a widget for modifying a property on a feature.
 func (instance *GardenPlanner) CreatePropertyWidget(property models.Property, feature *models.Feature) *widget.Entry {
 	// TODO: Custom widgets for property types.
+	// TODO: formatting parameters.
 	value := feature.Properties[property.Name]
 	str := ""
 
 	switch property.PropertyType {
-	case "dimension", "decimal":
-		str = fmt.Sprintf("%.3f", value)
+	case "dimension":
+		str = instance.Formatter.FormatDimension(float32(value.(float64)))
+	case "decimal":
+		str = instance.Formatter.FormatDecimal(float32(value.(float64)))
 	case "text":
 		str = value.(string)
 	case "integer":
-		str = strconv.Itoa(value.(int))
+		str = instance.Formatter.FormatInteger(value.(int))
 	}
 	entry := widget.NewEntry()
 	entry.SetText(str)
@@ -138,19 +144,26 @@ func (instance *GardenPlanner) CreatePropertyWidget(property models.Property, fe
 	// Setup events.
 	entry.OnSubmitted = func(s string) {
 		switch property.PropertyType {
-		case "dimension", "decimal":
-			setValue, err := strconv.ParseFloat(s, 32)
+		case "dimension":
+			setValue, err := instance.Formatter.ToDimension(s)
 			if err != nil {
-				dialog.ShowInformation("Error", "Invalid number.", instance.Window)
+				instance.Formatter.DimensionErrorDialog()
+				break
+			}
+			feature.Properties[property.Name] = setValue
+		case "decimal":
+			setValue, err := instance.Formatter.ToDecimal(s)
+			if err != nil {
+				instance.Formatter.DecimalErrorDialog()
 				break
 			}
 			feature.Properties[property.Name] = setValue
 		case "text":
 			feature.Properties[property.Name] = s
 		case "integer":
-			setValue, err := strconv.Atoi(s)
+			setValue, err := instance.Formatter.ToInteger(s)
 			if err != nil {
-				dialog.ShowInformation("Error", "Invalid number.", instance.Window)
+				instance.Formatter.IntegerErrorDialog()
 				break
 			}
 			feature.Properties[property.Name] = setValue
@@ -182,6 +195,7 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 	mainContainer := container.NewBorder(toolbar, nil, sidebar, nil, gardenWidget)
 	featureList := widget.NewList(func() int { return 0 }, func() fyne.CanvasObject { return widget.NewLabel("") }, func(lii widget.ListItemID, co fyne.CanvasObject) {})
 	propertyTable := container.NewGridWithColumns(2)
+	formatter := ui.NewFormatter(&mainWindow)
 
 	mainWindow.SetContent(mainContainer)
 
@@ -198,6 +212,7 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 		FeatureList:   featureList,
 		PropertyTable: propertyTable,
 		GardenData:    gardenData,
+		Formatter:     formatter,
 	}
 
 	// Setup Toolbar
