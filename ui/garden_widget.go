@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 	"github.com/cpgillem/garden-planner/geometry"
 	"github.com/cpgillem/garden-planner/models"
@@ -11,16 +10,16 @@ import (
 type GardenWidget struct {
 	widget.BaseWidget
 
-	// References to feature widgets added to container
-	container *fyne.Container
-	layout    *gardenLayout //TODO: replace with widget renderer.
+	// Feature Widgets
+	features []*FeatureWidget
 
 	// Internal data
-	Plan *models.Plan
+	Plan  *models.Plan
+	scale float32
 
 	// Events
 	OnFeatureTapped func(feature *models.Feature)
-	OnRefresh       func()
+	OnDragEnd       func()
 }
 
 // Create a new feature widget.
@@ -31,8 +30,8 @@ func (g *GardenWidget) addFeature(feature *models.Feature) {
 	}
 	// Handle drag events are bubbled up to the garden widget.
 	fw.OnHandleDragged = func(edge geometry.BoxEdge, e *fyne.DragEvent) {
-		dx := e.Dragged.DX / g.layout.scale
-		dy := e.Dragged.DY / g.layout.scale
+		dx := e.Dragged.DX / g.scale
+		dy := e.Dragged.DY / g.scale
 
 		// Handle edge cases (lol)
 		switch edge {
@@ -48,46 +47,40 @@ func (g *GardenWidget) addFeature(feature *models.Feature) {
 			feature.Box.Size.X += dx
 		}
 		g.Refresh()
-		g.OnRefresh()
 	}
 	fw.OnHandleDragEnd = func() {
-		// g.Refresh()
-		// g.OnRefresh()
+		g.OnDragEnd()
 	}
 	fw.OnDragged = func(e *fyne.DragEvent) {
 		feature.Box.Location = *feature.Box.Location.Add(&geometry.Vector{
-			X: e.Dragged.DX / g.layout.scale,
-			Y: e.Dragged.DY / g.layout.scale,
+			X: e.Dragged.DX / g.scale,
+			Y: e.Dragged.DY / g.scale,
 			Z: 0,
 		})
 		g.Refresh()
-		g.OnRefresh()
 	}
-	g.container.Add(fw)
+	fw.OnDragEnd = func() {
+		g.OnDragEnd()
+	}
+	g.features = append(g.features, fw)
 }
 
 // Opens a plan for viewing.
 func (g *GardenWidget) OpenPlan(plan *models.Plan) {
 	g.Plan = plan
 
-	// Add initial feature widgets.
-	for _, f := range plan.Features {
-		g.addFeature(&f)
+	// Add features
+	for _, feature := range plan.Features {
+		g.addFeature(&feature)
 	}
-
-	// Set plan bounds.
-	g.container.Layout.(*gardenLayout).box = &plan.Box
 
 	g.Refresh()
 }
 
 // Create a new garden widget. Requires a plan.
 func NewGardenWidget(plan *models.Plan) *GardenWidget {
-	layout := newGardenLayout(&plan.Box)
-
 	gardenWidget := &GardenWidget{
-		container: container.New(layout),
-		layout:    layout,
+		scale: 2,
 	}
 
 	gardenWidget.OpenPlan(plan)
@@ -97,48 +90,64 @@ func NewGardenWidget(plan *models.Plan) *GardenWidget {
 }
 
 func (w *GardenWidget) CreateRenderer() fyne.WidgetRenderer {
-	return widget.NewSimpleRenderer(w.container)
+	return newGardenRenderer(w)
 }
 
-type gardenLayout struct {
-	scale float32
-	box   *geometry.AxisAlignedBoundingBox
+type gardenRenderer struct {
+	parent *GardenWidget
 }
 
-func (g *gardenLayout) vectorSize(v geometry.Vector) fyne.Size {
-	return v.Scale(g.scale).ToSize()
+// Destroy implements fyne.WidgetRenderer.
+func (g gardenRenderer) Destroy() {
+
 }
 
-func (g *gardenLayout) boxSize(box geometry.AxisAlignedBoundingBox) fyne.Size {
-	return g.vectorSize(box.Size)
-}
-
-func (g *gardenLayout) vectorPosition(v geometry.Vector) fyne.Position {
-	return v.Scale(g.scale).ToPosition()
-}
-
-func (g *gardenLayout) boxPosition(box geometry.AxisAlignedBoundingBox) fyne.Position {
-	return g.vectorPosition(box.Location)
-}
-
-// Layout implements fyne.Layout.
-func (g *gardenLayout) Layout(objects []fyne.CanvasObject, containerSize fyne.Size) {
-	for _, o := range objects {
-		featureWidget := o.(*FeatureWidget)
-
-		o.Resize(g.boxSize(featureWidget.Feature.Box))
-		o.Move(g.boxPosition(featureWidget.Feature.Box))
+// Layout implements fyne.WidgetRenderer.
+func (g gardenRenderer) Layout(fyne.Size) {
+	for i := range g.parent.features {
+		featureWidget := g.parent.features[i]
+		featureWidget.Resize(fyne.NewSize(
+			featureWidget.Feature.Box.Size.X*g.parent.scale,
+			featureWidget.Feature.Box.Size.Y*g.parent.scale,
+		))
+		featureWidget.Move(fyne.NewPos(
+			featureWidget.Feature.Box.Location.X*g.parent.scale,
+			featureWidget.Feature.Box.Location.Y*g.parent.scale,
+		))
 	}
 }
 
-// MinSize implements fyne.Layout.
-func (g *gardenLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
-	return g.boxSize(*g.box)
+// MinSize implements fyne.WidgetRenderer.
+func (g gardenRenderer) MinSize() fyne.Size {
+	return fyne.NewSize(
+		g.parent.Plan.Box.Size.X*g.parent.scale,
+		g.parent.Plan.Box.Size.Y*g.parent.scale,
+	)
 }
 
-func newGardenLayout(box *geometry.AxisAlignedBoundingBox) *gardenLayout {
-	return &gardenLayout{
-		scale: 2,
-		box:   box,
+// Objects implements fyne.WidgetRenderer.
+func (g gardenRenderer) Objects() []fyne.CanvasObject {
+	os := []fyne.CanvasObject{}
+	for _, f := range g.parent.features {
+		os = append(os, f)
 	}
+	return os
+}
+
+// Refresh implements fyne.WidgetRenderer.
+func (g gardenRenderer) Refresh() {
+	for i := range g.parent.features {
+		g.parent.features[i].Refresh()
+	}
+
+	g.Layout(g.MinSize())
+	// g.parent.OnRefresh()
+}
+
+func newGardenRenderer(parent *GardenWidget) gardenRenderer {
+	gr := gardenRenderer{
+		parent: parent,
+	}
+
+	return gr
 }

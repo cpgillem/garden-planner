@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
@@ -42,6 +44,16 @@ func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 	instance.ClosePlan()
 	instance.CurrentPlan = plan
 
+	instance.SetupFeatureList()
+
+	instance.Sidebar.Add(instance.FeatureList)
+	instance.Sidebar.Add(instance.PropertyTable)
+
+	// Setup garden viewer widget.
+	instance.GardenWidget.OpenPlan(instance.CurrentPlan)
+}
+
+func (instance *GardenPlanner) SetupFeatureList() {
 	// Setup Feature List
 	// Feature length comes from the plan.
 	featuresLength := func() int {
@@ -53,8 +65,14 @@ func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 
 	// When a feature is added, create a label.
 	createFeature := func() fyne.CanvasObject {
-		// Fix later: why doesn't fyne refresh the width of the sidebar properly?
-		label := widget.NewLabel("aaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+		// Use the longest named feature for the min size.
+		templateName := ""
+		for _, f := range instance.CurrentPlan.Features {
+			if len(f.Name) > len(templateName) {
+				templateName = f.Name
+			}
+		}
+		label := widget.NewLabel(templateName)
 
 		return label
 	}
@@ -70,20 +88,16 @@ func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 
 	// When a feature is selected, display its properties.
 	instance.FeatureList.OnSelected = func(id widget.ListItemID) {
-		instance.SelectFeature(&instance.CurrentPlan.Features[id])
+		// TODO: Selecting from the feature list selects a different feature, somehow.
+		// instance.SelectFeature(&instance.CurrentPlan.Features[id])
 	}
 
 	instance.FeatureList.Refresh()
-
-	instance.Sidebar.Add(instance.FeatureList)
-	instance.Sidebar.Add(instance.PropertyTable)
-
-	// Setup garden viewer widget.
-	instance.GardenWidget.OpenPlan(plan)
 }
 
 // Updates the GUI when a feature is selected.
 func (instance *GardenPlanner) SelectFeature(feature *models.Feature) {
+	fmt.Printf("feature: %p", feature)
 	instance.PropertyTable.RemoveAll()
 	instance.AddFeatureProperties(feature)
 
@@ -103,7 +117,7 @@ func (instance *GardenPlanner) AddFeatureProperties(feature *models.Feature) {
 	nameLabel := widget.NewLabel("Name")
 	boxLabel := widget.NewLabel("Box")
 	boxEditor := ui.NewBoxEditor(&feature.Box, instance.Formatter)
-	boxEditor.OnUpdate = func() {
+	boxEditor.OnRefresh = func() {
 		instance.GardenWidget.Refresh()
 	}
 
@@ -247,7 +261,7 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 		gardenPlanner.SelectFeature(feature)
 	}
 
-	gardenWidget.OnRefresh = func() {
+	gardenWidget.OnDragEnd = func() {
 		gardenPlanner.FeatureList.Refresh()
 		gardenPlanner.PropertyTable.Refresh()
 	}

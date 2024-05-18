@@ -164,4 +164,6 @@ func (fr featureRenderer) Refresh() {
 	fr.BottomHandle.Refresh()
 	fr.LeftHandle.Refresh()
 	fr.RightHandle.Refresh()
+
+	// fr.Layout(fr.MinSize())
 }

@@ -31,7 +31,7 @@ type BoxEditor struct {
 	Formatter *Formatter
 
 	// Events
-	OnUpdate func()
+	OnRefresh func()
 }
 
 func NewBoxEditor(box *geometry.AxisAlignedBoundingBox, formatter *Formatter) *BoxEditor {
@@ -92,7 +92,9 @@ func NewBoxEditor(box *geometry.AxisAlignedBoundingBox, formatter *Formatter) *B
 }
 
 func (b *BoxEditor) CreateRenderer() fyne.WidgetRenderer {
-	return widget.NewSimpleRenderer(b.container)
+	renderer := widget.NewSimpleRenderer(b.container)
+	return renderer
+
 }
 
 func (b *BoxEditor) Refresh() {
@@ -101,5 +103,5 @@ func (b *BoxEditor) Refresh() {
 	b.WidthEntry.SetText(b.Formatter.FormatDimension(b.Box.Size.X))
 	b.HeightEntry.SetText(b.Formatter.FormatDimension(b.Box.Size.Y))
 
-	b.OnUpdate()
+	b.OnRefresh()
 }
