@@ -247,5 +247,10 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 		gardenPlanner.SelectFeature(feature)
 	}
 
+	gardenWidget.OnRefresh = func() {
+		gardenPlanner.FeatureList.Refresh()
+		gardenPlanner.PropertyTable.Refresh()
+	}
+
 	return &gardenPlanner
 }

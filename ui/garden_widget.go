@@ -13,12 +13,14 @@ type GardenWidget struct {
 
 	// References to feature widgets added to container
 	container *fyne.Container
+	layout    *gardenLayout //TODO: replace with widget renderer.
 
 	// Internal data
 	Plan *models.Plan
 
 	// Events
 	OnFeatureTapped func(feature *models.Feature)
+	OnRefresh       func()
 }
 
 // Create a new feature widget.
@@ -26,6 +28,30 @@ func (g *GardenWidget) addFeature(feature *models.Feature) {
 	fw := NewFeatureWidget(feature)
 	fw.OnTapped = func() {
 		g.OnFeatureTapped(fw.Feature)
+	}
+	// Handle drag events are bubbled up to the garden widget.
+	fw.OnHandleDragged = func(edge geometry.BoxEdge, e *fyne.DragEvent) {
+		dx := e.Dragged.DX / g.layout.scale
+		dy := e.Dragged.DY / g.layout.scale
+
+		// Handle edge cases (lol)
+		switch edge {
+		case geometry.TOP:
+			feature.Box.Location.Y += dy
+			feature.Box.Size.Y -= dy
+		case geometry.BOTTOM:
+			feature.Box.Size.Y += dy
+		case geometry.LEFT:
+			feature.Box.Location.X += dx
+			feature.Box.Size.X -= dx
+		case geometry.RIGHT:
+			feature.Box.Size.X += dx
+		}
+		g.Refresh()
+	}
+	fw.OnHandleDragEnd = func() {
+		g.Refresh()
+		g.OnRefresh()
 	}
 	g.container.Add(fw)
 }
@@ -47,8 +73,11 @@ func (g *GardenWidget) OpenPlan(plan *models.Plan) {
 
 // Create a new garden widget. Requires a plan.
 func NewGardenWidget(plan *models.Plan) *GardenWidget {
+	layout := newGardenLayout(&plan.Box)
+
 	gardenWidget := &GardenWidget{
-		container: container.New(newGardenLayout(&plan.Box)),
+		container: container.New(layout),
+		layout:    layout,
 	}
 
 	gardenWidget.OpenPlan(plan)
