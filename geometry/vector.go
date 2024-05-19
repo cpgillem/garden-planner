@@ -32,6 +32,13 @@ func (v *Vector) Add(v2 *Vector) *Vector {
 	}
 }
 
+func (v *Vector) AddTo(v2 *Vector) *Vector {
+	v.X += v2.X
+	v.Y += v2.Y
+	v.Z += v2.Z
+	return v
+}
+
 func (v *Vector) Negate() *Vector {
 	return v.Scale(-1)
 }

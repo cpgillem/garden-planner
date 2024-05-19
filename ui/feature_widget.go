@@ -5,22 +5,27 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/widget"
 	"github.com/cpgillem/garden-planner/geometry"
-	"github.com/cpgillem/garden-planner/models"
 	"golang.org/x/image/colornames"
 )
+
+type FeatureID int
 
 type FeatureWidget struct {
 	widget.BaseWidget
 
 	// Internal data
-	Feature *models.Feature
+	FeatureID FeatureID
 
 	// Events
 	OnTapped        func()
-	OnHandleDragged func(edge geometry.BoxEdge, e *fyne.DragEvent)
+	OnHandleDragged func(id FeatureID, edge geometry.BoxEdge, e *fyne.DragEvent)
 	OnHandleDragEnd func()
-	OnDragged       func(e *fyne.DragEvent)
+	OnDragged       func(id FeatureID, e *fyne.DragEvent)
 	OnDragEnd       func()
+	OnRefresh       func(id FeatureID)
+
+	// Data hooks
+	GetName func(id FeatureID) string
 }
 
 // Implement the Tappable interface to define click behavior.
@@ -29,7 +34,7 @@ func (fw *FeatureWidget) Tapped(e *fyne.PointEvent) {
 }
 
 func (fw *FeatureWidget) Dragged(e *fyne.DragEvent) {
-	fw.OnDragged(e)
+	fw.OnDragged(fw.FeatureID, e)
 }
 
 func (fw *FeatureWidget) DragEnd() {
@@ -37,14 +42,16 @@ func (fw *FeatureWidget) DragEnd() {
 }
 
 // Create a new widget representing a landscaping feature.
-func NewFeatureWidget(feature *models.Feature) *FeatureWidget {
+func NewFeatureWidget(id FeatureID) *FeatureWidget {
 	featureWidget := FeatureWidget{
-		Feature:         feature,
+		FeatureID:       id,
 		OnTapped:        func() {},
-		OnHandleDragged: func(edge geometry.BoxEdge, e *fyne.DragEvent) {},
+		OnHandleDragged: func(id FeatureID, edge geometry.BoxEdge, e *fyne.DragEvent) {},
 		OnHandleDragEnd: func() {},
-		OnDragged:       func(e *fyne.DragEvent) {},
+		OnDragged:       func(id FeatureID, e *fyne.DragEvent) {},
 		OnDragEnd:       func() {},
+		OnRefresh:       func(id FeatureID) {},
+		GetName:         func(id FeatureID) string { return "" },
 	}
 
 	featureWidget.ExtendBaseWidget(&featureWidget)
@@ -81,16 +88,16 @@ func newFeatureRenderer(parent *FeatureWidget) featureRenderer {
 
 	// Handle drag events.
 	fr.TopHandle.OnDragged = func(e *fyne.DragEvent) {
-		fr.parent.OnHandleDragged(geometry.TOP, e)
+		fr.parent.OnHandleDragged(parent.FeatureID, geometry.TOP, e)
 	}
 	fr.BottomHandle.OnDragged = func(e *fyne.DragEvent) {
-		fr.parent.OnHandleDragged(geometry.BOTTOM, e)
+		fr.parent.OnHandleDragged(parent.FeatureID, geometry.BOTTOM, e)
 	}
 	fr.LeftHandle.OnDragged = func(e *fyne.DragEvent) {
-		fr.parent.OnHandleDragged(geometry.LEFT, e)
+		fr.parent.OnHandleDragged(parent.FeatureID, geometry.LEFT, e)
 	}
 	fr.RightHandle.OnDragged = func(e *fyne.DragEvent) {
-		fr.parent.OnHandleDragged(geometry.RIGHT, e)
+		fr.parent.OnHandleDragged(parent.FeatureID, geometry.RIGHT, e)
 	}
 	fr.TopHandle.OnDragEnd = fr.parent.OnHandleDragEnd
 	fr.BottomHandle.OnDragEnd = fr.parent.OnHandleDragEnd
@@ -157,13 +164,14 @@ func (fr featureRenderer) Objects() []fyne.CanvasObject {
 func (fr featureRenderer) Refresh() {
 	fr.Border.Refresh()
 
-	fr.Label.SetText(fr.parent.Feature.Name)
-	fr.Label.Refresh()
+	fr.Label.SetText(fr.parent.GetName(fr.parent.FeatureID))
 
 	fr.TopHandle.Refresh()
 	fr.BottomHandle.Refresh()
 	fr.LeftHandle.Refresh()
 	fr.RightHandle.Refresh()
+
+	fr.parent.OnRefresh(fr.parent.FeatureID)
 
 	// fr.Layout(fr.MinSize())
 }

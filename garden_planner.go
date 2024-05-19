@@ -89,15 +89,15 @@ func (instance *GardenPlanner) SetupFeatureList() {
 
 	// When a feature is selected, display its properties.
 	instance.FeatureList.OnSelected = func(id widget.ListItemID) {
-		// TODO: Selecting from the feature list selects a different feature, somehow.
-		// instance.SelectFeature(&instance.CurrentPlan.Features[id])
+		instance.SelectFeature(ui.FeatureID(id))
 	}
 
 	instance.FeatureList.Refresh()
 }
 
 // Updates the GUI when a feature is selected.
-func (instance *GardenPlanner) SelectFeature(feature *models.Feature) {
+func (instance *GardenPlanner) SelectFeature(id ui.FeatureID) {
+	feature := &instance.CurrentPlan.Features[id]
 	fmt.Printf("feature: %p", feature)
 	instance.PropertyTable.RemoveAll()
 	instance.AddFeatureProperties(feature)
@@ -258,27 +258,33 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 	toolbar.Append(widget.NewToolbarSeparator())
 
 	// Setup garden widget.
-	gardenWidget.OnFeatureTapped = func(feature *models.Feature) {
-		gardenPlanner.SelectFeature(feature)
+	gardenWidget.OnFeatureTapped = func(id ui.FeatureID) {
+		gardenPlanner.SelectFeature(id)
 	}
 
-	gardenWidget.OnFeatureHandleDragged = func(feature *models.Feature, edge geometry.BoxEdge, e *fyne.DragEvent) {
+	gardenWidget.OnFeatureHandleDragged = func(id ui.FeatureID, edge geometry.BoxEdge, e *fyne.DragEvent) {
 		dx := e.Dragged.DX / gardenWidget.Scale
 		dy := e.Dragged.DY / gardenWidget.Scale
+		dbox := geometry.NewBox()
 
 		// Handle edge cases (lol)
 		switch edge {
 		case geometry.TOP:
-			feature.Box.Location.Y += dy
-			feature.Box.Size.Y -= dy
+			dbox.Location.Y = dy
+			dbox.Size.Y = -dy
 		case geometry.BOTTOM:
-			feature.Box.Size.Y += dy
+			dbox.Size.Y = dy
 		case geometry.LEFT:
-			feature.Box.Location.X += dx
-			feature.Box.Size.X -= dx
+			dbox.Location.X = dx
+			dbox.Size.X = -dx
 		case geometry.RIGHT:
-			feature.Box.Size.X += dx
+			dbox.Size.X = dx
 		}
+
+		// Add box delta.
+		gardenPlanner.CurrentPlan.Features[id].Box.Location.AddTo(&dbox.Location)
+		gardenPlanner.CurrentPlan.Features[id].Box.Size.AddTo(&dbox.Size)
+
 		gardenWidget.Refresh()
 	}
 
@@ -287,13 +293,38 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 		gardenPlanner.PropertyTable.Refresh()
 	}
 
-	gardenWidget.OnDragEnd = func() {
+	gardenWidget.OnFeatureDragEnd = func() {
 		gardenPlanner.FeatureList.Refresh()
 		gardenPlanner.PropertyTable.Refresh()
 	}
 
 	gardenWidget.GetPlanSize = func() geometry.Vector {
 		return gardenPlanner.CurrentPlan.Box.Size
+	}
+
+	gardenWidget.OnFeatureDragged = func(id ui.FeatureID, e *fyne.DragEvent) {
+		gardenPlanner.CurrentPlan.Features[id].Box.Location.AddTo(&geometry.Vector{
+			X: e.Dragged.DX / gardenWidget.Scale,
+			Y: e.Dragged.DY / gardenWidget.Scale,
+			Z: 0,
+		})
+		gardenWidget.Refresh()
+	}
+
+	gardenWidget.GetFeatureBox = func(id ui.FeatureID) geometry.AxisAlignedBoundingBox {
+		return gardenPlanner.CurrentPlan.Features[id].Box
+	}
+
+	gardenWidget.GetPlanSize = func() geometry.Vector {
+		return gardenPlanner.CurrentPlan.Box.Size
+	}
+
+	gardenWidget.OnFeatureRefresh = func(id ui.FeatureID) {
+
+	}
+
+	gardenWidget.GetFeatureName = func(id ui.FeatureID) string {
+		return gardenPlanner.CurrentPlan.Features[id].Name
 	}
 
 	return &gardenPlanner
