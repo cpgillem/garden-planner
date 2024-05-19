@@ -26,13 +26,13 @@ type BoxEditor struct {
 	container *fyne.Container
 
 	// Reference to box
-	Box *geometry.AxisAlignedBoundingBox
+	Box *geometry.Box
 
 	// Reference to formatter
 	Formatter *Formatter
 }
 
-func NewBoxEditor(box *geometry.AxisAlignedBoundingBox, formatter *Formatter) *BoxEditor {
+func NewBoxEditor(box *geometry.Box, formatter *Formatter) *BoxEditor {
 	boxEditor := &BoxEditor{
 		Box:         box,
 		XLabel:      widget.NewLabel("X"),

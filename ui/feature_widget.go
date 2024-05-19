@@ -42,7 +42,7 @@ func (fw *FeatureWidget) Tapped(e *fyne.PointEvent) {
 	fw.OnTapped()
 }
 func (fw *FeatureWidget) Dragged(e *fyne.DragEvent) {
-	boxDelta := geometry.NewBoxWithValues(
+	boxDelta := geometry.NewBox(
 		e.Dragged.DX/fw.Controller.DisplayConfig.Scale,
 		e.Dragged.DY/fw.Controller.DisplayConfig.Scale,
 		0,
@@ -58,7 +58,7 @@ func (fw *FeatureWidget) DragEnd() {
 func (fw *FeatureWidget) HandleDragged(edge geometry.BoxEdge, e *fyne.DragEvent) {
 	dx := e.Dragged.DX / fw.Controller.DisplayConfig.Scale
 	dy := e.Dragged.DY / fw.Controller.DisplayConfig.Scale
-	dbox := geometry.NewBox()
+	dbox := geometry.NewBoxZero()
 
 	// Handle edge cases (lol)
 	switch edge {

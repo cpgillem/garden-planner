@@ -7,8 +7,8 @@ type FeatureID int
 // A landscaping feature, such as a row of plants, planter, garden bed, tree, or obstacle.
 // The whole yard, fenced off area, etc. can serve as the root feature.
 type Feature struct {
-	Box  geometry.AxisAlignedBoundingBox `json:"box"`
-	Name string                          `json:"name"`
+	Box  geometry.Box `json:"box"`
+	Name string       `json:"name"`
 
 	// Table of data properties depending on what type of feature this is.
 	Properties map[string]any `json:"properties"`
@@ -31,7 +31,7 @@ func NewFeature(propMap map[string]Property, template *FeatureTemplate) Feature 
 }
 
 // Creates a new plant feature according to the plant template.
-func NewPlantFeature(name string, box geometry.AxisAlignedBoundingBox, plantType *PlantType) *Feature {
+func NewPlantFeature(name string, box geometry.Box, plantType *PlantType) *Feature {
 	plant := Feature{
 		Name: name,
 		Box:  box,

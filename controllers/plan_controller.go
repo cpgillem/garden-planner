@@ -25,7 +25,7 @@ func NewPlanController(plan *models.Plan, displayConfig *models.DisplayConfig) P
 	}
 }
 
-func (c *PlanController) MoveResizeFeature(id models.FeatureID, boxDelta *geometry.AxisAlignedBoundingBox) {
+func (c *PlanController) MoveResizeFeature(id models.FeatureID, boxDelta *geometry.Box) {
 	c.Plan.Features[id].Box.AddTo(boxDelta)
 }
 
