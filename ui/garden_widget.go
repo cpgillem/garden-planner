@@ -14,9 +14,6 @@ type GardenWidget struct {
 	// Feature Widgets
 	features []*FeatureWidget
 
-	// Internal data
-	Scale float32
-
 	// Controller reference
 	Controller *controllers.PlanController
 
@@ -63,7 +60,6 @@ func (g *GardenWidget) OpenPlan(controller *controllers.PlanController) {
 // Create a new garden widget. Requires a plan.
 func NewGardenWidget(controller *controllers.PlanController) *GardenWidget {
 	gardenWidget := &GardenWidget{
-		Scale:                  2,
 		Controller:             controller,
 		OnFeatureDragged:       func(id models.FeatureID, e *fyne.DragEvent) {},
 		OnFeatureDragEnd:       func(id models.FeatureID) {},
@@ -95,12 +91,12 @@ func (g gardenRenderer) Layout(fyne.Size) {
 	for _, f := range g.parent.features {
 		box := g.parent.Controller.Plan.Features[f.FeatureID].Box
 		f.Resize(fyne.NewSize(
-			box.Size.X*g.parent.Scale,
-			box.Size.Y*g.parent.Scale,
+			box.Size.X*g.parent.Controller.DisplayConfig.Scale,
+			box.Size.Y*g.parent.Controller.DisplayConfig.Scale,
 		))
 		f.Move(fyne.NewPos(
-			box.Location.X*g.parent.Scale,
-			box.Location.Y*g.parent.Scale,
+			box.Location.X*g.parent.Controller.DisplayConfig.Scale,
+			box.Location.Y*g.parent.Controller.DisplayConfig.Scale,
 		))
 	}
 }
@@ -109,8 +105,8 @@ func (g gardenRenderer) Layout(fyne.Size) {
 func (g gardenRenderer) MinSize() fyne.Size {
 	size := g.parent.Controller.Plan.Box.Size
 	return fyne.NewSize(
-		size.X*g.parent.Scale,
-		size.Y*g.parent.Scale,
+		size.X*g.parent.Controller.DisplayConfig.Scale,
+		size.Y*g.parent.Controller.DisplayConfig.Scale,
 	)
 }
 

@@ -35,9 +35,10 @@ type GardenPlanner struct {
 	FeatureList   *widget.List
 
 	// Data
-	CurrentPlan *models.Plan
-	GardenData  *GardenData
-	Formatter   *ui.Formatter
+	CurrentPlan   *models.Plan
+	GardenData    *GardenData
+	Formatter     *ui.Formatter
+	DisplayConfig *models.DisplayConfig
 }
 
 // Creates a new instance of the app.
@@ -45,9 +46,10 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 	// Setup UI elements
 	mainApp := app.New()
 	mainWindow := mainApp.NewWindow("Garden Planner")
+	displayConfig := models.NewDisplayConfig()
 	sidebar := container.NewVBox()
 	blankPlan := models.NewPlan()
-	planController := controllers.NewPlanController(blankPlan)
+	planController := controllers.NewPlanController(blankPlan, &displayConfig)
 	gardenWidget := ui.NewGardenWidget(&planController)
 	toolbar := widget.NewToolbar()
 	statusBar := widget.NewLabel("")
@@ -73,6 +75,7 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 		GardenData:     gardenData,
 		Formatter:      formatter,
 		PlanController: planController,
+		DisplayConfig:  &displayConfig,
 	}
 
 	// Setup Toolbar
@@ -95,7 +98,8 @@ func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 	instance.Sidebar.Add(instance.FeatureList)
 	instance.Sidebar.Add(instance.PropertyTable)
 
-	instance.PlanController = controllers.NewPlanController(plan)
+	// TODO: Make displayconfig loadable from a file.
+	instance.PlanController = controllers.NewPlanController(plan, instance.DisplayConfig)
 
 	// Setup garden viewer widget.
 	instance.GardenWidget.OpenPlan(&instance.PlanController)

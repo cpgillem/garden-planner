@@ -10,16 +10,16 @@ type PlanController struct {
 	Plan *models.Plan
 
 	// Display data
-	Scale float32
+	DisplayConfig *models.DisplayConfig
 
 	// Defines how to refresh UI code.
 	OnFeatureSelected func(id models.FeatureID)
 }
 
-func NewPlanController(plan *models.Plan) PlanController {
+func NewPlanController(plan *models.Plan, displayConfig *models.DisplayConfig) PlanController {
 	return PlanController{
 		Plan:              plan,
-		Scale:             2,
+		DisplayConfig:     displayConfig,
 		OnFeatureSelected: func(id models.FeatureID) {},
 	}
 }
