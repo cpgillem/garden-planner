@@ -14,6 +14,22 @@ type Feature struct {
 	Properties map[string]any `json:"properties"`
 }
 
+func NewFeature(propMap map[string]Property, template *FeatureTemplate) Feature {
+	f := Feature{
+		Name:       template.DisplayName,
+		Box:        template.Box.Copy(),
+		Properties: map[string]any{},
+	}
+
+	// Set default properties.
+	for _, propName := range template.Properties {
+		prop := propMap[propName]
+		f.Properties[prop.Name] = prop.Default
+	}
+
+	return f
+}
+
 // Creates a new plant feature according to the plant template.
 func NewPlantFeature(name string, box geometry.AxisAlignedBoundingBox, plantType *PlantType) *Feature {
 	plant := Feature{

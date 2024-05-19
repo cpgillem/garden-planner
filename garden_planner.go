@@ -33,6 +33,7 @@ type GardenPlanner struct {
 	StatusBar     *widget.Label
 	PropertyTable *fyne.Container
 	FeatureList   *widget.List
+	FeatureTools  *fyne.Container
 
 	// Data
 	CurrentPlan   *models.Plan
@@ -57,6 +58,7 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 	featureList := widget.NewList(func() int { return 0 }, func() fyne.CanvasObject { return widget.NewLabel("") }, func(lii widget.ListItemID, co fyne.CanvasObject) {})
 	propertyTable := container.NewGridWithColumns(2)
 	formatter := ui.NewFormatter(&mainWindow)
+	featureTools := container.NewHBox()
 
 	mainWindow.SetContent(mainContainer)
 
@@ -70,6 +72,7 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 		Toolbar:        toolbar,
 		StatusBar:      statusBar,
 		GardenWidget:   gardenWidget,
+		FeatureTools:   featureTools,
 		FeatureList:    featureList,
 		PropertyTable:  propertyTable,
 		GardenData:     gardenData,
@@ -80,6 +83,7 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 
 	// Setup Toolbar
 	gardenPlanner.SetupToolbar()
+	gardenPlanner.SetupFeatureTools()
 
 	return &gardenPlanner
 }
@@ -95,21 +99,29 @@ func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 
 	instance.SetupFeatureList()
 
+	instance.Sidebar.Add(instance.FeatureTools)
 	instance.Sidebar.Add(instance.FeatureList)
 	instance.Sidebar.Add(instance.PropertyTable)
 
 	// TODO: Make displayconfig loadable from a file.
+
+	// Setup Plan controller.
 	instance.PlanController = controllers.NewPlanController(plan, instance.DisplayConfig)
+
+	instance.PlanController.OnFeatureSelected = func(id models.FeatureID) {
+		instance.SelectFeature(id)
+	}
+
+	instance.PlanController.OnFeatureAdded = func(id models.FeatureID) {
+		instance.GardenWidget.AddFeature(id)
+		instance.SelectFeature(id)
+	}
 
 	// Setup garden viewer widget.
 	instance.GardenWidget.OpenPlan(&instance.PlanController)
 
 	instance.GardenWidget.OnFeatureDragEnd = func(id models.FeatureID) {
 		instance.Sidebar.Refresh()
-	}
-
-	instance.PlanController.OnFeatureSelected = func(id models.FeatureID) {
-		instance.SelectFeature(id)
 	}
 
 	instance.GardenWidget.OnFeatureHandleDragEnd = func(id models.FeatureID, edge geometry.BoxEdge) {
@@ -171,6 +183,8 @@ func (instance *GardenPlanner) SelectFeature(id models.FeatureID) {
 		instance.PropertyTable.Add(label)
 		instance.PropertyTable.Add(entry)
 	}
+
+	instance.GardenWidget.SelectFeature(id)
 
 	instance.PropertyTable.Refresh()
 	instance.GardenWidget.Refresh()
@@ -262,11 +276,14 @@ func (instance *GardenPlanner) ClosePlan() {
 }
 
 func (instance *GardenPlanner) SetupToolbar() {
+	// Create file
 	createButton := widget.NewToolbarAction(theme.DocumentCreateIcon(), func() {
 		// Open an empty plan.
 		instance.OpenPlan(&models.Plan{})
 	})
 	instance.Toolbar.Append(createButton)
+
+	// Open file
 	instance.Toolbar.Append(widget.NewToolbarAction(theme.FolderOpenIcon(), func() {
 		// Display the file open dialog.
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
@@ -277,6 +294,8 @@ func (instance *GardenPlanner) SetupToolbar() {
 			}
 		}, instance.Window)
 	}))
+
+	// Save file
 	instance.Toolbar.Append(widget.NewToolbarAction(theme.DocumentSaveIcon(), func() {
 		// Display the file save dialog.
 		dialog.ShowFileSave(func(writer fyne.URIWriteCloser, err error) {
@@ -286,5 +305,19 @@ func (instance *GardenPlanner) SetupToolbar() {
 			}
 		}, instance.Window)
 	}))
-	instance.Toolbar.Append(widget.NewToolbarSeparator())
+}
+
+func (instance *GardenPlanner) SetupFeatureTools() {
+	// Setup template selector for new features.
+	templateNames := []string{}
+	for _, t := range instance.GardenData.FeatureTemplates {
+		// TODO: More robust template selector
+		templateNames = append(templateNames, t.Name)
+	}
+	templateSelector := widget.NewSelect(templateNames, func(s string) {
+		t := instance.GardenData.FeatureTemplates[s]
+		f := models.NewFeature(instance.GardenData.Properties, &t)
+		instance.PlanController.AddFeature(f)
+	})
+	instance.FeatureTools.Add(templateSelector)
 }

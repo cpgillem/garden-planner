@@ -13,8 +13,17 @@ import (
 type FeatureWidget struct {
 	widget.BaseWidget
 
+	// Internal widgets
+	Label        *widget.Label
+	Border       *canvas.Rectangle
+	TopHandle    *Handle
+	BottomHandle *Handle
+	LeftHandle   *Handle
+	RightHandle  *Handle
+
 	// Internal data
 	FeatureID models.FeatureID
+	selected  bool
 
 	// Controller Reference
 	Controller *controllers.PlanController
@@ -24,12 +33,13 @@ type FeatureWidget struct {
 	OnDragEnd       func()
 	OnHandleDragged func(edge geometry.BoxEdge, e *fyne.DragEvent)
 	OnHandleDragEnd func(edge geometry.BoxEdge)
+	OnTapped        func()
 }
 
 // Implement the Tappable interface to define click behavior.
 func (fw *FeatureWidget) Tapped(e *fyne.PointEvent) {
 	fw.Controller.SelectFeature(fw.FeatureID)
-	fw.Refresh()
+	fw.OnTapped()
 }
 func (fw *FeatureWidget) Dragged(e *fyne.DragEvent) {
 	boxDelta := geometry.NewBoxWithValues(
@@ -75,72 +85,81 @@ func (fw *FeatureWidget) HandleDragEnd(edge geometry.BoxEdge) {
 
 // Create a new widget representing a landscaping feature.
 func NewFeatureWidget(id models.FeatureID, controller *controllers.PlanController) *FeatureWidget {
-	featureWidget := FeatureWidget{
+	fw := FeatureWidget{
 		FeatureID:       id,
 		Controller:      controller,
+		selected:        false,
 		OnDragEnd:       func() {},
 		OnDragged:       func(e *fyne.DragEvent) {},
 		OnHandleDragged: func(edge geometry.BoxEdge, e *fyne.DragEvent) {},
 		OnHandleDragEnd: func(edge geometry.BoxEdge) {},
+		OnTapped:        func() {},
+		Label:           widget.NewLabel(""),
+		Border:          canvas.NewRectangle(colornames.Lawngreen),
+		TopHandle:       NewHandle(),
+		BottomHandle:    NewHandle(),
+		LeftHandle:      NewHandle(),
+		RightHandle:     NewHandle(),
 	}
 
-	featureWidget.ExtendBaseWidget(&featureWidget)
+	// Handle drag events.
+	fw.TopHandle.OnDragged = func(e *fyne.DragEvent) {
+		fw.HandleDragged(geometry.TOP, e)
+	}
+	fw.BottomHandle.OnDragged = func(e *fyne.DragEvent) {
+		fw.HandleDragged(geometry.BOTTOM, e)
+	}
+	fw.LeftHandle.OnDragged = func(e *fyne.DragEvent) {
+		fw.HandleDragged(geometry.LEFT, e)
+	}
+	fw.RightHandle.OnDragged = func(e *fyne.DragEvent) {
+		fw.HandleDragged(geometry.RIGHT, e)
+	}
 
-	return &featureWidget
+	fw.TopHandle.OnDragEnd = func() {
+		fw.HandleDragEnd(geometry.TOP)
+	}
+	fw.BottomHandle.OnDragEnd = func() {
+		fw.HandleDragEnd(geometry.BOTTOM)
+	}
+	fw.LeftHandle.OnDragEnd = func() {
+		fw.HandleDragEnd(geometry.LEFT)
+	}
+	fw.RightHandle.OnDragEnd = func() {
+		fw.HandleDragEnd(geometry.RIGHT)
+	}
+
+	fw.ExtendBaseWidget(&fw)
+
+	return &fw
 }
 
 func (featureWidget *FeatureWidget) CreateRenderer() fyne.WidgetRenderer {
 	return newFeatureRenderer(featureWidget)
 }
 
+func (fw *FeatureWidget) Select() {
+	fw.selected = true
+	fw.Border.StrokeColor = colornames.Black
+	fw.Border.StrokeWidth = 1
+}
+
+func (fw *FeatureWidget) Deselect() {
+	fw.selected = false
+	fw.Border.StrokeWidth = 0
+}
+
+func (fw *FeatureWidget) IsSelected() bool {
+	return fw.selected
+}
+
 type featureRenderer struct {
 	parent *FeatureWidget
-
-	// Internal widgets
-	Label        *widget.Label
-	Border       *canvas.Rectangle
-	TopHandle    *Handle
-	BottomHandle *Handle
-	LeftHandle   *Handle
-	RightHandle  *Handle
 }
 
 func newFeatureRenderer(parent *FeatureWidget) featureRenderer {
 	fr := featureRenderer{
-		parent:       parent,
-		Label:        widget.NewLabel(""),
-		Border:       canvas.NewRectangle(colornames.Lawngreen),
-		TopHandle:    NewHandle(),
-		BottomHandle: NewHandle(),
-		LeftHandle:   NewHandle(),
-		RightHandle:  NewHandle(),
-	}
-
-	// Handle drag events.
-	fr.TopHandle.OnDragged = func(e *fyne.DragEvent) {
-		fr.parent.HandleDragged(geometry.TOP, e)
-	}
-	fr.BottomHandle.OnDragged = func(e *fyne.DragEvent) {
-		fr.parent.HandleDragged(geometry.BOTTOM, e)
-	}
-	fr.LeftHandle.OnDragged = func(e *fyne.DragEvent) {
-		fr.parent.HandleDragged(geometry.LEFT, e)
-	}
-	fr.RightHandle.OnDragged = func(e *fyne.DragEvent) {
-		fr.parent.HandleDragged(geometry.RIGHT, e)
-	}
-
-	fr.TopHandle.OnDragEnd = func() {
-		fr.parent.HandleDragEnd(geometry.TOP)
-	}
-	fr.BottomHandle.OnDragEnd = func() {
-		fr.parent.HandleDragEnd(geometry.BOTTOM)
-	}
-	fr.LeftHandle.OnDragEnd = func() {
-		fr.parent.HandleDragEnd(geometry.LEFT)
-	}
-	fr.RightHandle.OnDragEnd = func() {
-		fr.parent.HandleDragEnd(geometry.RIGHT)
+		parent: parent,
 	}
 
 	return fr
@@ -152,63 +171,63 @@ func (fr featureRenderer) Destroy() {
 
 func (fr featureRenderer) Layout(size fyne.Size) {
 	// Define size of rectangle.
-	fr.Border.Resize(size)
+	fr.parent.Border.Resize(size)
 
 	// Position handles.
 	handleSize := fyne.NewSquareSize(10)
-	fr.TopHandle.Resize(handleSize)
-	fr.BottomHandle.Resize(handleSize)
-	fr.LeftHandle.Resize(handleSize)
-	fr.RightHandle.Resize(handleSize)
+	fr.parent.TopHandle.Resize(handleSize)
+	fr.parent.BottomHandle.Resize(handleSize)
+	fr.parent.LeftHandle.Resize(handleSize)
+	fr.parent.RightHandle.Resize(handleSize)
 
-	fr.TopHandle.Move(fyne.NewPos(
+	fr.parent.TopHandle.Move(fyne.NewPos(
 		size.Width/2,
 		0,
 	))
-	fr.BottomHandle.Move(fyne.NewPos(
+	fr.parent.BottomHandle.Move(fyne.NewPos(
 		size.Width/2,
 		size.Height,
 	))
-	fr.LeftHandle.Move(fyne.NewPos(
+	fr.parent.LeftHandle.Move(fyne.NewPos(
 		0,
 		size.Height/2,
 	))
-	fr.RightHandle.Move(fyne.NewPos(
+	fr.parent.RightHandle.Move(fyne.NewPos(
 		size.Width,
 		size.Height/2,
 	))
 
 	// Center the rectangle.
-	fr.Border.Move(fyne.NewPos(
-		fr.LeftHandle.Size().Width/2,
-		fr.TopHandle.Size().Height/2,
+	fr.parent.Border.Move(fyne.NewPos(
+		fr.parent.LeftHandle.Size().Width/2,
+		fr.parent.TopHandle.Size().Height/2,
 	))
 }
 
 func (fr featureRenderer) MinSize() fyne.Size {
-	return fr.Border.MinSize().Add(fr.LeftHandle.MinSize())
+	return fr.parent.Border.MinSize().Add(fr.parent.LeftHandle.MinSize())
 }
 
 func (fr featureRenderer) Objects() []fyne.CanvasObject {
 	return []fyne.CanvasObject{
-		fr.Border,
-		fr.TopHandle,
-		fr.BottomHandle,
-		fr.LeftHandle,
-		fr.RightHandle,
-		fr.Label,
+		fr.parent.Border,
+		fr.parent.TopHandle,
+		fr.parent.BottomHandle,
+		fr.parent.LeftHandle,
+		fr.parent.RightHandle,
+		fr.parent.Label,
 	}
 }
 
 func (fr featureRenderer) Refresh() {
-	fr.Border.Refresh()
+	fr.parent.Border.Refresh()
 
-	fr.Label.SetText(fr.parent.Controller.Plan.Features[fr.parent.FeatureID].Name)
+	fr.parent.Label.SetText(fr.parent.Controller.Plan.Features[fr.parent.FeatureID].Name)
 
-	fr.TopHandle.Refresh()
-	fr.BottomHandle.Refresh()
-	fr.LeftHandle.Refresh()
-	fr.RightHandle.Refresh()
+	fr.parent.TopHandle.Refresh()
+	fr.parent.BottomHandle.Refresh()
+	fr.parent.LeftHandle.Refresh()
+	fr.parent.RightHandle.Refresh()
 
 	// fr.Layout(fr.MinSize())
 }

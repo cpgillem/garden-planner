@@ -2,24 +2,28 @@
     {
         "name": "row_width",
         "display_name": "Row Width",
+        "default": 18,
         "description": "Width of row of plants. Should be equal to the plant's spread.",
         "property_type": "dimension"
     },
     {
         "name": "plant_spacing",
         "display_name": "Plant Spacing",
+        "default": 12,
         "description": "Spacing between plants. Should be equal to the plant's spread, plus desired breathing room.",
         "property_type": "dimension"
     },
     {
         "name": "water_requirement",
         "display_name": "Water Requirements (G/wk)",
+        "default": 1,
         "description": "Watering requirements in gallons per week.",
         "property_type": "decimal"
     },
     {
         "name": "water_frequency",
         "display_name": "Watering Frequency (per wk)",
+        "default": 1,
         "description": "Number of times to water per week.",
         "property_type": "integer"
     }

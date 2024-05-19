@@ -14,6 +14,7 @@ type PlanController struct {
 
 	// Defines how to refresh UI code.
 	OnFeatureSelected func(id models.FeatureID)
+	OnFeatureAdded    func(id models.FeatureID)
 }
 
 func NewPlanController(plan *models.Plan, displayConfig *models.DisplayConfig) PlanController {
@@ -30,4 +31,9 @@ func (c *PlanController) MoveResizeFeature(id models.FeatureID, boxDelta *geomet
 
 func (c *PlanController) SelectFeature(id models.FeatureID) {
 	c.OnFeatureSelected(id)
+}
+
+func (c *PlanController) AddFeature(f models.Feature) {
+	c.Plan.Features = append(c.Plan.Features, f)
+	c.OnFeatureAdded(models.FeatureID(len(c.Plan.Features) - 1))
 }

@@ -1,6 +1,19 @@
 [
     {
-        "name": "plant",
+        "name": "plant_row",
+        "display_name": "Plant Row",
+        "box": {
+            "location": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "size": {
+                "x":12,
+                "y":12,
+                "z":0
+            }
+        },
         "properties": [
             "plant_spacing",
             "row_width"

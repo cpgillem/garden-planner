@@ -51,6 +51,10 @@ func (v *Vector) ToPosition() fyne.Position {
 	return fyne.NewPos(v.X, v.Y)
 }
 
+func (v *Vector) Copy() Vector {
+	return NewVector(v.X, v.Y, v.Z)
+}
+
 func NewVectorFromSize(size *fyne.Size) Vector {
 	return Vector{
 		X: size.Width,

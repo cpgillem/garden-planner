@@ -22,10 +22,11 @@ type GardenWidget struct {
 	OnFeatureDragEnd       func(id models.FeatureID)
 	OnFeatureHandleDragged func(id models.FeatureID, edge geometry.BoxEdge, e *fyne.DragEvent)
 	OnFeatureHandleDragEnd func(id models.FeatureID, edge geometry.BoxEdge)
+	OnFeatureTapped        func(id models.FeatureID)
 }
 
 // Create a new feature widget.
-func (g *GardenWidget) addFeature(id models.FeatureID) {
+func (g *GardenWidget) AddFeature(id models.FeatureID) {
 	fw := NewFeatureWidget(id, g.Controller)
 	fw.OnDragEnd = func() {
 		g.Refresh()
@@ -42,7 +43,22 @@ func (g *GardenWidget) addFeature(id models.FeatureID) {
 	fw.OnHandleDragEnd = func(edge geometry.BoxEdge) {
 		g.OnFeatureHandleDragEnd(fw.FeatureID, edge)
 	}
+	fw.OnTapped = func() {
+		g.SelectFeature(fw.FeatureID)
+		g.OnFeatureTapped(fw.FeatureID)
+	}
 	g.features = append(g.features, fw)
+}
+
+func (g *GardenWidget) SelectFeature(id models.FeatureID) {
+	// Deselect other features.
+	for i := range g.features {
+		g.features[i].Deselect()
+	}
+
+	// Select this feature.
+	g.features[id].Select()
+	g.Refresh()
 }
 
 // Opens a plan for viewing.
@@ -51,7 +67,7 @@ func (g *GardenWidget) OpenPlan(controller *controllers.PlanController) {
 
 	// Add features
 	for i := range controller.Plan.Features {
-		g.addFeature(models.FeatureID(i))
+		g.AddFeature(models.FeatureID(i))
 	}
 
 	g.Refresh()
@@ -65,6 +81,7 @@ func NewGardenWidget(controller *controllers.PlanController) *GardenWidget {
 		OnFeatureDragEnd:       func(id models.FeatureID) {},
 		OnFeatureHandleDragged: func(id models.FeatureID, edge geometry.BoxEdge, e *fyne.DragEvent) {},
 		OnFeatureHandleDragEnd: func(id models.FeatureID, edge geometry.BoxEdge) {},
+		OnFeatureTapped:        func(id models.FeatureID) {},
 	}
 
 	gardenWidget.OpenPlan(gardenWidget.Controller)

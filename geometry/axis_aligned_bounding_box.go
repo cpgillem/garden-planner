@@ -38,3 +38,10 @@ func (aabb *AxisAlignedBoundingBox) AddTo(b2 *AxisAlignedBoundingBox) *AxisAlign
 	aabb.Size.AddTo(&b2.Size)
 	return aabb
 }
+
+func (aabb *AxisAlignedBoundingBox) Copy() AxisAlignedBoundingBox {
+	return AxisAlignedBoundingBox{
+		aabb.Location.Copy(),
+		aabb.Size.Copy(),
+	}
+}
