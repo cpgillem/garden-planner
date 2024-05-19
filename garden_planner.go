@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"github.com/cpgillem/garden-planner/controllers"
 	"github.com/cpgillem/garden-planner/geometry"
 	"github.com/cpgillem/garden-planner/models"
 	"github.com/cpgillem/garden-planner/ui"
@@ -24,6 +25,9 @@ type GardenPlanner struct {
 	Sidebar       *fyne.Container
 	GardenWidget  *ui.GardenWidget
 
+	// Controllers
+	PlanController controllers.PlanController
+
 	// Permanent Widgets
 	Toolbar       *widget.Toolbar
 	StatusBar     *widget.Label
@@ -34,6 +38,47 @@ type GardenPlanner struct {
 	CurrentPlan *models.Plan
 	GardenData  *GardenData
 	Formatter   *ui.Formatter
+}
+
+// Creates a new instance of the app.
+func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
+	// Setup UI elements
+	mainApp := app.New()
+	mainWindow := mainApp.NewWindow("Garden Planner")
+	sidebar := container.NewVBox()
+	blankPlan := models.NewPlan()
+	planController := controllers.NewPlanController(blankPlan)
+	gardenWidget := ui.NewGardenWidget(&planController)
+	toolbar := widget.NewToolbar()
+	statusBar := widget.NewLabel("")
+	mainContainer := container.NewBorder(toolbar, nil, sidebar, nil, gardenWidget)
+	featureList := widget.NewList(func() int { return 0 }, func() fyne.CanvasObject { return widget.NewLabel("") }, func(lii widget.ListItemID, co fyne.CanvasObject) {})
+	propertyTable := container.NewGridWithColumns(2)
+	formatter := ui.NewFormatter(&mainWindow)
+
+	mainWindow.SetContent(mainContainer)
+
+	// Create new app instance
+	gardenPlanner := GardenPlanner{
+		CurrentPlan:    nil,
+		App:            mainApp,
+		Window:         mainWindow,
+		MainContainer:  mainContainer,
+		Sidebar:        sidebar,
+		Toolbar:        toolbar,
+		StatusBar:      statusBar,
+		GardenWidget:   gardenWidget,
+		FeatureList:    featureList,
+		PropertyTable:  propertyTable,
+		GardenData:     gardenData,
+		Formatter:      formatter,
+		PlanController: planController,
+	}
+
+	// Setup Toolbar
+	gardenPlanner.SetupToolbar()
+
+	return &gardenPlanner
 }
 
 func (p *GardenPlanner) Start() {
@@ -50,8 +95,22 @@ func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 	instance.Sidebar.Add(instance.FeatureList)
 	instance.Sidebar.Add(instance.PropertyTable)
 
+	instance.PlanController = controllers.NewPlanController(plan)
+
 	// Setup garden viewer widget.
-	instance.GardenWidget.OpenPlan(instance.CurrentPlan)
+	instance.GardenWidget.OpenPlan(&instance.PlanController)
+
+	instance.GardenWidget.OnFeatureDragEnd = func(id models.FeatureID) {
+		instance.Sidebar.Refresh()
+	}
+
+	instance.PlanController.OnFeatureSelected = func(id models.FeatureID) {
+		instance.SelectFeature(id)
+	}
+
+	instance.GardenWidget.OnFeatureHandleDragEnd = func(id models.FeatureID, edge geometry.BoxEdge) {
+		instance.Sidebar.Refresh()
+	}
 }
 
 func (instance *GardenPlanner) SetupFeatureList() {
@@ -89,14 +148,14 @@ func (instance *GardenPlanner) SetupFeatureList() {
 
 	// When a feature is selected, display its properties.
 	instance.FeatureList.OnSelected = func(id widget.ListItemID) {
-		instance.SelectFeature(ui.FeatureID(id))
+		instance.SelectFeature(models.FeatureID(id))
 	}
 
 	instance.FeatureList.Refresh()
 }
 
 // Updates the GUI when a feature is selected.
-func (instance *GardenPlanner) SelectFeature(id ui.FeatureID) {
+func (instance *GardenPlanner) SelectFeature(id models.FeatureID) {
 	feature := &instance.CurrentPlan.Features[id]
 	fmt.Printf("feature: %p", feature)
 	instance.PropertyTable.RemoveAll()
@@ -119,7 +178,7 @@ func (instance *GardenPlanner) AddFeatureProperties(feature *models.Feature) {
 	boxLabel := widget.NewLabel("Box")
 	boxEditor := ui.NewBoxEditor(&feature.Box, instance.Formatter)
 	boxEditor.OnRefresh = func() {
-		instance.GardenWidget.Refresh()
+		//instance.GardenWidget.Refresh()
 	}
 
 	nameEntry := widget.NewEntry()
@@ -198,134 +257,30 @@ func (instance *GardenPlanner) ClosePlan() {
 	instance.CurrentPlan = &models.Plan{}
 }
 
-// Creates a new instance of the app.
-func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
-	// Setup UI elements
-	mainApp := app.New()
-	mainWindow := mainApp.NewWindow("Garden Planner")
-	sidebar := container.NewVBox()
-	gardenWidget := ui.NewGardenWidget(models.NewPlan())
-	toolbar := widget.NewToolbar()
-	statusBar := widget.NewLabel("")
-	mainContainer := container.NewBorder(toolbar, nil, sidebar, nil, gardenWidget)
-	featureList := widget.NewList(func() int { return 0 }, func() fyne.CanvasObject { return widget.NewLabel("") }, func(lii widget.ListItemID, co fyne.CanvasObject) {})
-	propertyTable := container.NewGridWithColumns(2)
-	formatter := ui.NewFormatter(&mainWindow)
-
-	mainWindow.SetContent(mainContainer)
-
-	// Create new app instance
-	gardenPlanner := GardenPlanner{
-		CurrentPlan:   nil,
-		App:           mainApp,
-		Window:        mainWindow,
-		MainContainer: mainContainer,
-		Sidebar:       sidebar,
-		Toolbar:       toolbar,
-		StatusBar:     statusBar,
-		GardenWidget:  gardenWidget,
-		FeatureList:   featureList,
-		PropertyTable: propertyTable,
-		GardenData:    gardenData,
-		Formatter:     formatter,
-	}
-
-	// Setup Toolbar
+func (instance *GardenPlanner) SetupToolbar() {
 	createButton := widget.NewToolbarAction(theme.DocumentCreateIcon(), func() {
 		// Open an empty plan.
-		gardenPlanner.OpenPlan(&models.Plan{})
+		instance.OpenPlan(&models.Plan{})
 	})
-	toolbar.Append(createButton)
-	toolbar.Append(widget.NewToolbarAction(theme.FolderOpenIcon(), func() {
+	instance.Toolbar.Append(createButton)
+	instance.Toolbar.Append(widget.NewToolbarAction(theme.FolderOpenIcon(), func() {
 		// Display the file open dialog.
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if reader != nil {
 				// Read the plan and open it.
 				plan, _ := ReadObject[models.Plan](reader)
-				gardenPlanner.OpenPlan(plan)
+				instance.OpenPlan(plan)
 			}
-		}, gardenPlanner.Window)
+		}, instance.Window)
 	}))
-	toolbar.Append(widget.NewToolbarAction(theme.DocumentSaveIcon(), func() {
+	instance.Toolbar.Append(widget.NewToolbarAction(theme.DocumentSaveIcon(), func() {
 		// Display the file save dialog.
 		dialog.ShowFileSave(func(writer fyne.URIWriteCloser, err error) {
 			if writer != nil {
 				// Save the plan.
-				WriteObject(writer, gardenPlanner.CurrentPlan)
+				WriteObject(writer, instance.CurrentPlan)
 			}
-		}, gardenPlanner.Window)
+		}, instance.Window)
 	}))
-	toolbar.Append(widget.NewToolbarSeparator())
-
-	// Setup garden widget.
-	gardenWidget.OnFeatureTapped = func(id ui.FeatureID) {
-		gardenPlanner.SelectFeature(id)
-	}
-
-	gardenWidget.OnFeatureHandleDragged = func(id ui.FeatureID, edge geometry.BoxEdge, e *fyne.DragEvent) {
-		dx := e.Dragged.DX / gardenWidget.Scale
-		dy := e.Dragged.DY / gardenWidget.Scale
-		dbox := geometry.NewBox()
-
-		// Handle edge cases (lol)
-		switch edge {
-		case geometry.TOP:
-			dbox.Location.Y = dy
-			dbox.Size.Y = -dy
-		case geometry.BOTTOM:
-			dbox.Size.Y = dy
-		case geometry.LEFT:
-			dbox.Location.X = dx
-			dbox.Size.X = -dx
-		case geometry.RIGHT:
-			dbox.Size.X = dx
-		}
-
-		// Add box delta.
-		gardenPlanner.CurrentPlan.Features[id].Box.Location.AddTo(&dbox.Location)
-		gardenPlanner.CurrentPlan.Features[id].Box.Size.AddTo(&dbox.Size)
-
-		gardenWidget.Refresh()
-	}
-
-	gardenWidget.OnHandleDragEnd = func() {
-		gardenPlanner.FeatureList.Refresh()
-		gardenPlanner.PropertyTable.Refresh()
-	}
-
-	gardenWidget.OnFeatureDragEnd = func() {
-		gardenPlanner.FeatureList.Refresh()
-		gardenPlanner.PropertyTable.Refresh()
-	}
-
-	gardenWidget.GetPlanSize = func() geometry.Vector {
-		return gardenPlanner.CurrentPlan.Box.Size
-	}
-
-	gardenWidget.OnFeatureDragged = func(id ui.FeatureID, e *fyne.DragEvent) {
-		gardenPlanner.CurrentPlan.Features[id].Box.Location.AddTo(&geometry.Vector{
-			X: e.Dragged.DX / gardenWidget.Scale,
-			Y: e.Dragged.DY / gardenWidget.Scale,
-			Z: 0,
-		})
-		gardenWidget.Refresh()
-	}
-
-	gardenWidget.GetFeatureBox = func(id ui.FeatureID) geometry.AxisAlignedBoundingBox {
-		return gardenPlanner.CurrentPlan.Features[id].Box
-	}
-
-	gardenWidget.GetPlanSize = func() geometry.Vector {
-		return gardenPlanner.CurrentPlan.Box.Size
-	}
-
-	gardenWidget.OnFeatureRefresh = func(id ui.FeatureID) {
-
-	}
-
-	gardenWidget.GetFeatureName = func(id ui.FeatureID) string {
-		return gardenPlanner.CurrentPlan.Features[id].Name
-	}
-
-	return &gardenPlanner
+	instance.Toolbar.Append(widget.NewToolbarSeparator())
 }

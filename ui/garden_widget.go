@@ -3,6 +3,7 @@ package ui
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
+	"github.com/cpgillem/garden-planner/controllers"
 	"github.com/cpgillem/garden-planner/geometry"
 	"github.com/cpgillem/garden-planner/models"
 )
@@ -16,76 +17,61 @@ type GardenWidget struct {
 	// Internal data
 	Scale float32
 
-	// Events
-	OnFeatureTapped        func(id FeatureID)
-	OnFeatureHandleDragged func(id FeatureID, edge geometry.BoxEdge, e *fyne.DragEvent)
-	OnHandleDragEnd        func()
-	OnFeatureDragged       func(id FeatureID, e *fyne.DragEvent)
-	OnFeatureDragEnd       func()
-	OnFeatureRefresh       func(id FeatureID)
+	// Controller reference
+	Controller *controllers.PlanController
 
-	// Data hooks
-	GetPlanSize    func() geometry.Vector
-	GetFeatureBox  func(id FeatureID) geometry.AxisAlignedBoundingBox
-	GetFeatureName func(id FeatureID) string
+	// Events
+	OnFeatureDragged       func(id models.FeatureID, e *fyne.DragEvent)
+	OnFeatureDragEnd       func(id models.FeatureID)
+	OnFeatureHandleDragged func(id models.FeatureID, edge geometry.BoxEdge, e *fyne.DragEvent)
+	OnFeatureHandleDragEnd func(id models.FeatureID, edge geometry.BoxEdge)
 }
 
 // Create a new feature widget.
-func (g *GardenWidget) addFeature(id FeatureID) {
-	fw := NewFeatureWidget(id)
-	fw.OnTapped = func() {
-		g.OnFeatureTapped(id)
-	}
-	// Handle drag events are bubbled up to the garden widget.
-	fw.OnHandleDragged = func(id FeatureID, edge geometry.BoxEdge, e *fyne.DragEvent) {
-		g.OnFeatureHandleDragged(id, edge, e)
-	}
-	fw.OnHandleDragEnd = func() {
-		g.OnHandleDragEnd()
-	}
-	fw.OnDragged = func(id FeatureID, e *fyne.DragEvent) {
-		g.OnFeatureDragged(id, e)
-	}
+func (g *GardenWidget) addFeature(id models.FeatureID) {
+	fw := NewFeatureWidget(id, g.Controller)
 	fw.OnDragEnd = func() {
-		g.OnFeatureDragEnd()
+		g.Refresh()
+		g.OnFeatureDragEnd(fw.FeatureID)
 	}
-	fw.OnRefresh = func(id FeatureID) {
-		g.OnFeatureRefresh(id)
+	fw.OnDragged = func(e *fyne.DragEvent) {
+		g.Refresh()
+		g.OnFeatureDragged(fw.FeatureID, e)
 	}
-	fw.GetName = func(id FeatureID) string {
-		return g.GetFeatureName(id)
+	fw.OnHandleDragged = func(edge geometry.BoxEdge, e *fyne.DragEvent) {
+		g.Refresh()
+		g.OnFeatureHandleDragged(fw.FeatureID, edge, e)
+	}
+	fw.OnHandleDragEnd = func(edge geometry.BoxEdge) {
+		g.OnFeatureHandleDragEnd(fw.FeatureID, edge)
 	}
 	g.features = append(g.features, fw)
 }
 
 // Opens a plan for viewing.
-func (g *GardenWidget) OpenPlan(plan *models.Plan) {
+func (g *GardenWidget) OpenPlan(controller *controllers.PlanController) {
+	g.Controller = controller
+
 	// Add features
-	for i := range plan.Features {
-		g.addFeature(FeatureID(i))
+	for i := range controller.Plan.Features {
+		g.addFeature(models.FeatureID(i))
 	}
 
 	g.Refresh()
 }
 
 // Create a new garden widget. Requires a plan.
-func NewGardenWidget(plan *models.Plan) *GardenWidget {
+func NewGardenWidget(controller *controllers.PlanController) *GardenWidget {
 	gardenWidget := &GardenWidget{
 		Scale:                  2,
-		GetPlanSize:            func() geometry.Vector { return geometry.NewVector(0, 0, 0) },
-		OnFeatureTapped:        func(id FeatureID) {},
-		OnFeatureHandleDragged: func(id FeatureID, edge geometry.BoxEdge, e *fyne.DragEvent) {},
-		OnFeatureDragged:       func(id FeatureID, e *fyne.DragEvent) {},
-		OnFeatureDragEnd:       func() {},
-		GetFeatureBox: func(id FeatureID) geometry.AxisAlignedBoundingBox {
-			return geometry.AxisAlignedBoundingBox{
-				Location: geometry.NewVector(0, 0, 0),
-				Size:     geometry.NewVector(0, 0, 0),
-			}
-		},
+		Controller:             controller,
+		OnFeatureDragged:       func(id models.FeatureID, e *fyne.DragEvent) {},
+		OnFeatureDragEnd:       func(id models.FeatureID) {},
+		OnFeatureHandleDragged: func(id models.FeatureID, edge geometry.BoxEdge, e *fyne.DragEvent) {},
+		OnFeatureHandleDragEnd: func(id models.FeatureID, edge geometry.BoxEdge) {},
 	}
 
-	gardenWidget.OpenPlan(plan)
+	gardenWidget.OpenPlan(gardenWidget.Controller)
 
 	gardenWidget.ExtendBaseWidget(gardenWidget)
 	return gardenWidget
@@ -107,7 +93,7 @@ func (g gardenRenderer) Destroy() {
 // Layout implements fyne.WidgetRenderer.
 func (g gardenRenderer) Layout(fyne.Size) {
 	for _, f := range g.parent.features {
-		box := g.parent.GetFeatureBox(f.FeatureID)
+		box := g.parent.Controller.Plan.Features[f.FeatureID].Box
 		f.Resize(fyne.NewSize(
 			box.Size.X*g.parent.Scale,
 			box.Size.Y*g.parent.Scale,
@@ -121,7 +107,7 @@ func (g gardenRenderer) Layout(fyne.Size) {
 
 // MinSize implements fyne.WidgetRenderer.
 func (g gardenRenderer) MinSize() fyne.Size {
-	size := g.parent.GetPlanSize()
+	size := g.parent.Controller.Plan.Box.Size
 	return fyne.NewSize(
 		size.X*g.parent.Scale,
 		size.Y*g.parent.Scale,
@@ -144,7 +130,6 @@ func (g gardenRenderer) Refresh() {
 	}
 
 	g.Layout(g.MinSize())
-	// g.parent.OnRefresh()
 }
 
 func newGardenRenderer(parent *GardenWidget) gardenRenderer {
