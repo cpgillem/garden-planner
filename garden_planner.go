@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"github.com/cpgillem/garden-planner/geometry"
 	"github.com/cpgillem/garden-planner/models"
 	"github.com/cpgillem/garden-planner/ui"
 )
@@ -261,9 +262,38 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 		gardenPlanner.SelectFeature(feature)
 	}
 
+	gardenWidget.OnFeatureHandleDragged = func(feature *models.Feature, edge geometry.BoxEdge, e *fyne.DragEvent) {
+		dx := e.Dragged.DX / gardenWidget.Scale
+		dy := e.Dragged.DY / gardenWidget.Scale
+
+		// Handle edge cases (lol)
+		switch edge {
+		case geometry.TOP:
+			feature.Box.Location.Y += dy
+			feature.Box.Size.Y -= dy
+		case geometry.BOTTOM:
+			feature.Box.Size.Y += dy
+		case geometry.LEFT:
+			feature.Box.Location.X += dx
+			feature.Box.Size.X -= dx
+		case geometry.RIGHT:
+			feature.Box.Size.X += dx
+		}
+		gardenWidget.Refresh()
+	}
+
+	gardenWidget.OnHandleDragEnd = func() {
+		gardenPlanner.FeatureList.Refresh()
+		gardenPlanner.PropertyTable.Refresh()
+	}
+
 	gardenWidget.OnDragEnd = func() {
 		gardenPlanner.FeatureList.Refresh()
 		gardenPlanner.PropertyTable.Refresh()
+	}
+
+	gardenWidget.GetPlanSize = func() geometry.Vector {
+		return gardenPlanner.CurrentPlan.Box.Size
 	}
 
 	return &gardenPlanner

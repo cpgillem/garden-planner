@@ -14,12 +14,16 @@ type GardenWidget struct {
 	features []*FeatureWidget
 
 	// Internal data
-	Plan  *models.Plan
-	scale float32
+	Scale float32
 
 	// Events
-	OnFeatureTapped func(feature *models.Feature)
-	OnDragEnd       func()
+	OnFeatureTapped        func(feature *models.Feature)
+	OnFeatureHandleDragged func(feature *models.Feature, edge geometry.BoxEdge, e *fyne.DragEvent)
+	OnDragEnd              func()
+	OnHandleDragEnd        func()
+
+	// Data hooks
+	GetPlanSize func() geometry.Vector
 }
 
 // Create a new feature widget.
@@ -30,31 +34,15 @@ func (g *GardenWidget) addFeature(feature *models.Feature) {
 	}
 	// Handle drag events are bubbled up to the garden widget.
 	fw.OnHandleDragged = func(edge geometry.BoxEdge, e *fyne.DragEvent) {
-		dx := e.Dragged.DX / g.scale
-		dy := e.Dragged.DY / g.scale
-
-		// Handle edge cases (lol)
-		switch edge {
-		case geometry.TOP:
-			feature.Box.Location.Y += dy
-			feature.Box.Size.Y -= dy
-		case geometry.BOTTOM:
-			feature.Box.Size.Y += dy
-		case geometry.LEFT:
-			feature.Box.Location.X += dx
-			feature.Box.Size.X -= dx
-		case geometry.RIGHT:
-			feature.Box.Size.X += dx
-		}
-		g.Refresh()
+		g.OnFeatureHandleDragged(fw.Feature, edge, e)
 	}
 	fw.OnHandleDragEnd = func() {
-		g.OnDragEnd()
+		g.OnHandleDragEnd()
 	}
 	fw.OnDragged = func(e *fyne.DragEvent) {
 		feature.Box.Location = *feature.Box.Location.Add(&geometry.Vector{
-			X: e.Dragged.DX / g.scale,
-			Y: e.Dragged.DY / g.scale,
+			X: e.Dragged.DX / g.Scale,
+			Y: e.Dragged.DY / g.Scale,
 			Z: 0,
 		})
 		g.Refresh()
@@ -67,8 +55,6 @@ func (g *GardenWidget) addFeature(feature *models.Feature) {
 
 // Opens a plan for viewing.
 func (g *GardenWidget) OpenPlan(plan *models.Plan) {
-	g.Plan = plan
-
 	// Add features
 	for _, feature := range plan.Features {
 		g.addFeature(&feature)
@@ -80,7 +66,8 @@ func (g *GardenWidget) OpenPlan(plan *models.Plan) {
 // Create a new garden widget. Requires a plan.
 func NewGardenWidget(plan *models.Plan) *GardenWidget {
 	gardenWidget := &GardenWidget{
-		scale: 2,
+		Scale:       2,
+		GetPlanSize: func() geometry.Vector { return geometry.Vector{X: 0, Y: 0, Z: 0} },
 	}
 
 	gardenWidget.OpenPlan(plan)
@@ -107,21 +94,22 @@ func (g gardenRenderer) Layout(fyne.Size) {
 	for i := range g.parent.features {
 		featureWidget := g.parent.features[i]
 		featureWidget.Resize(fyne.NewSize(
-			featureWidget.Feature.Box.Size.X*g.parent.scale,
-			featureWidget.Feature.Box.Size.Y*g.parent.scale,
+			featureWidget.Feature.Box.Size.X*g.parent.Scale,
+			featureWidget.Feature.Box.Size.Y*g.parent.Scale,
 		))
 		featureWidget.Move(fyne.NewPos(
-			featureWidget.Feature.Box.Location.X*g.parent.scale,
-			featureWidget.Feature.Box.Location.Y*g.parent.scale,
+			featureWidget.Feature.Box.Location.X*g.parent.Scale,
+			featureWidget.Feature.Box.Location.Y*g.parent.Scale,
 		))
 	}
 }
 
 // MinSize implements fyne.WidgetRenderer.
 func (g gardenRenderer) MinSize() fyne.Size {
+	size := g.parent.GetPlanSize()
 	return fyne.NewSize(
-		g.parent.Plan.Box.Size.X*g.parent.scale,
-		g.parent.Plan.Box.Size.Y*g.parent.scale,
+		size.X*g.parent.Scale,
+		size.Y*g.parent.Scale,
 	)
 }
 
