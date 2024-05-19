@@ -7,6 +7,7 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/cpgillem/garden-planner/controllers"
@@ -56,7 +57,7 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 	statusBar := widget.NewLabel("")
 	mainContainer := container.NewBorder(toolbar, nil, sidebar, nil, gardenWidget)
 	featureList := widget.NewList(func() int { return 0 }, func() fyne.CanvasObject { return widget.NewLabel("") }, func(lii widget.ListItemID, co fyne.CanvasObject) {})
-	propertyTable := container.NewGridWithColumns(2)
+	propertyTable := container.New(layout.NewFormLayout())
 	formatter := ui.NewFormatter(&mainWindow)
 	featureTools := container.NewHBox()
 
@@ -177,13 +178,6 @@ func (instance *GardenPlanner) SelectFeature(id models.FeatureID) {
 	instance.PropertyTable.RemoveAll()
 	instance.AddFeatureProperties(feature)
 
-	for propertyName := range feature.Properties {
-		label := widget.NewLabel(instance.GardenData.Properties[propertyName].DisplayName)
-		entry := instance.CreatePropertyWidget(instance.GardenData.Properties[propertyName], feature)
-		instance.PropertyTable.Add(label)
-		instance.PropertyTable.Add(entry)
-	}
-
 	instance.GardenWidget.SelectFeature(id)
 
 	instance.PropertyTable.Refresh()
@@ -195,11 +189,10 @@ func (instance *GardenPlanner) AddFeatureProperties(feature *models.Feature) {
 	nameLabel := widget.NewLabel("Name")
 	boxLabel := widget.NewLabel("Box")
 	boxEditor := ui.NewBoxEditor(&feature.Box, instance.Formatter)
-	boxEditor.OnRefresh = func() {
-		//instance.GardenWidget.Refresh()
-	}
 
+	// Base built-in properties.
 	nameEntry := widget.NewEntry()
+	nameEntry.MultiLine = false
 	nameEntry.SetText(feature.Name)
 	nameEntry.OnSubmitted = func(s string) {
 		feature.Name = s
@@ -211,6 +204,14 @@ func (instance *GardenPlanner) AddFeatureProperties(feature *models.Feature) {
 	instance.PropertyTable.Add(nameEntry)
 	instance.PropertyTable.Add(boxLabel)
 	instance.PropertyTable.Add(boxEditor)
+
+	// Custom properties on feature.
+	for propertyName := range feature.Properties {
+		label := widget.NewLabel(instance.GardenData.Properties[propertyName].DisplayName)
+		entry := instance.CreatePropertyWidget(instance.GardenData.Properties[propertyName], feature)
+		instance.PropertyTable.Add(label)
+		instance.PropertyTable.Add(entry)
+	}
 }
 
 // Creates a widget for modifying a property on a feature.

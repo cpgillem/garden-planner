@@ -170,6 +170,8 @@ func (fr featureRenderer) Destroy() {
 }
 
 func (fr featureRenderer) Layout(size fyne.Size) {
+	// TODO: Layout can have more objects depending on properties feature contains, e.g. row spacing.
+
 	// Define size of rectangle.
 	fr.parent.Border.Resize(size)
 

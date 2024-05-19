@@ -3,6 +3,7 @@ package ui
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/cpgillem/garden-planner/geometry"
 )
@@ -29,9 +30,6 @@ type BoxEditor struct {
 
 	// Reference to formatter
 	Formatter *Formatter
-
-	// Events
-	OnRefresh func()
 }
 
 func NewBoxEditor(box *geometry.AxisAlignedBoundingBox, formatter *Formatter) *BoxEditor {
@@ -45,7 +43,7 @@ func NewBoxEditor(box *geometry.AxisAlignedBoundingBox, formatter *Formatter) *B
 		YEntry:      widget.NewEntry(),
 		WidthEntry:  widget.NewEntry(),
 		HeightEntry: widget.NewEntry(),
-		container:   container.NewGridWithColumns(2),
+		container:   container.New(layout.NewFormLayout()),
 		Formatter:   formatter,
 	}
 
@@ -102,6 +100,4 @@ func (b *BoxEditor) Refresh() {
 	b.YEntry.SetText(b.Formatter.FormatDimension(b.Box.Location.Y))
 	b.WidthEntry.SetText(b.Formatter.FormatDimension(b.Box.Size.X))
 	b.HeightEntry.SetText(b.Formatter.FormatDimension(b.Box.Size.Y))
-
-	b.OnRefresh()
 }
