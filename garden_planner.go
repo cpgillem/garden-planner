@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
@@ -36,8 +34,11 @@ type GardenPlanner struct {
 	FeatureList   *widget.List
 	FeatureTools  *fyne.Container
 
+	// Button References
+	DeleteFeature    *widget.Button
+	TemplateSelector *widget.Select
+
 	// Data
-	CurrentPlan   *models.Plan
 	GardenData    *GardenData
 	Formatter     *ui.Formatter
 	DisplayConfig *models.DisplayConfig
@@ -65,7 +66,6 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 
 	// Create new app instance
 	gardenPlanner := GardenPlanner{
-		CurrentPlan:    nil,
 		App:            mainApp,
 		Window:         mainWindow,
 		MainContainer:  mainContainer,
@@ -96,12 +96,11 @@ func (p *GardenPlanner) Start() {
 
 func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 	instance.ClosePlan()
-	instance.CurrentPlan = plan
 
-	instance.SetupFeatureList()
+	// instance.SetupFeatureList()
 
 	instance.Sidebar.Add(instance.FeatureTools)
-	instance.Sidebar.Add(instance.FeatureList)
+	// instance.Sidebar.Add(instance.FeatureList)
 	instance.Sidebar.Add(instance.PropertyTable)
 
 	// TODO: Make displayconfig loadable from a file.
@@ -118,6 +117,14 @@ func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 		instance.SelectFeature(id)
 	}
 
+	instance.PlanController.OnFeatureRemoved = func(id models.FeatureID) {
+		if instance.PlanController.GetSelectedFeature() == id {
+			instance.PropertyTable.RemoveAll()
+			instance.DeleteFeature.Disable()
+		}
+		instance.GardenWidget.RemoveFeature(id)
+	}
+
 	// Setup garden viewer widget.
 	instance.GardenWidget.OpenPlan(&instance.PlanController)
 
@@ -128,28 +135,25 @@ func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 	instance.GardenWidget.OnFeatureHandleDragEnd = func(id models.FeatureID, edge geometry.BoxEdge) {
 		instance.Sidebar.Refresh()
 	}
+
+	// Enable necessary feature buttons.
+	if instance.PlanController.HasSelection() {
+		instance.DeleteFeature.Enable()
+	}
+	instance.TemplateSelector.Enable()
 }
 
 func (instance *GardenPlanner) SetupFeatureList() {
 	// Setup Feature List
 	// Feature length comes from the plan.
 	featuresLength := func() int {
-		if instance.CurrentPlan == nil {
-			return 0
-		}
-		return int(len(instance.CurrentPlan.Features))
+		return instance.PlanController.LenFeatures()
 	}
 
 	// When a feature is added, create a label.
 	createFeature := func() fyne.CanvasObject {
 		// Use the longest named feature for the min size.
-		templateName := ""
-		for _, f := range instance.CurrentPlan.Features {
-			if len(f.Name) > len(templateName) {
-				templateName = f.Name
-			}
-		}
-		label := widget.NewLabel(templateName)
+		label := widget.NewLabel(instance.PlanController.GetMaxName())
 
 		return label
 	}
@@ -157,7 +161,11 @@ func (instance *GardenPlanner) SetupFeatureList() {
 	// When a feature is updated, set its text.
 	updateFeature := func(id widget.ListItemID, o fyne.CanvasObject) {
 		obj := o.(*widget.Label)
-		obj.SetText(instance.CurrentPlan.Features[id].Name)
+		if instance.PlanController.HasFeature(models.FeatureID(id)) {
+			obj.SetText(instance.PlanController.Plan.Features[models.FeatureID(id)].Name)
+		} else {
+			obj.Hide()
+		}
 	}
 
 	// Recreate feature list to clear it.
@@ -173,19 +181,25 @@ func (instance *GardenPlanner) SetupFeatureList() {
 
 // Updates the GUI when a feature is selected.
 func (instance *GardenPlanner) SelectFeature(id models.FeatureID) {
-	feature := &instance.CurrentPlan.Features[id]
-	fmt.Printf("feature: %p", feature)
 	instance.PropertyTable.RemoveAll()
-	instance.AddFeatureProperties(feature)
+	instance.AddFeatureProperties(id)
 
 	instance.GardenWidget.SelectFeature(id)
+
+	// Enable feature editing buttons
+	instance.DeleteFeature.Enable()
 
 	instance.PropertyTable.Refresh()
 	instance.GardenWidget.Refresh()
 }
 
+func (instance *GardenPlanner) ClearFeatureProperties() {
+	instance.PropertyTable.RemoveAll()
+}
+
 // Adds the base properties of any landscaping feature to the properties panel.
-func (instance *GardenPlanner) AddFeatureProperties(feature *models.Feature) {
+func (instance *GardenPlanner) AddFeatureProperties(id models.FeatureID) {
+	feature := instance.PlanController.Plan.Features[id]
 	nameLabel := widget.NewLabel("Name")
 	boxLabel := widget.NewLabel("Box")
 	boxEditor := ui.NewBoxEditor(&feature.Box, instance.Formatter)
@@ -273,7 +287,8 @@ func (instance *GardenPlanner) ClosePlan() {
 	// instance.Content.RemoveAll()
 	instance.FeatureList = widget.NewList(func() int { return 0 }, func() fyne.CanvasObject { return widget.NewLabel("") }, func(lii widget.ListItemID, co fyne.CanvasObject) {})
 	instance.PropertyTable.RemoveAll()
-	instance.CurrentPlan = &models.Plan{}
+	instance.DeleteFeature.Disable()
+	instance.TemplateSelector.Disable()
 }
 
 func (instance *GardenPlanner) SetupToolbar() {
@@ -302,7 +317,7 @@ func (instance *GardenPlanner) SetupToolbar() {
 		dialog.ShowFileSave(func(writer fyne.URIWriteCloser, err error) {
 			if writer != nil {
 				// Save the plan.
-				WriteObject(writer, instance.CurrentPlan)
+				WriteObject(writer, instance.PlanController.Plan)
 			}
 		}, instance.Window)
 	}))
@@ -315,10 +330,19 @@ func (instance *GardenPlanner) SetupFeatureTools() {
 		// TODO: More robust template selector
 		templateNames = append(templateNames, t.Name)
 	}
-	templateSelector := widget.NewSelect(templateNames, func(s string) {
+	instance.TemplateSelector = widget.NewSelect(templateNames, func(s string) {
 		t := instance.GardenData.FeatureTemplates[s]
 		f := models.NewFeature(instance.GardenData.Properties, &t)
 		instance.PlanController.AddFeature(f)
 	})
-	instance.FeatureTools.Add(templateSelector)
+	instance.TemplateSelector.Disable()
+	instance.TemplateSelector.PlaceHolder = "New Feature..."
+	instance.FeatureTools.Add(instance.TemplateSelector)
+
+	// Setup Feature delete button.
+	instance.DeleteFeature = widget.NewButtonWithIcon("Delete", theme.DeleteIcon(), func() {
+		instance.PlanController.RemoveSelected()
+	})
+	instance.DeleteFeature.Disable()
+	instance.FeatureTools.Add(instance.DeleteFeature)
 }

@@ -12,8 +12,8 @@
             "z": 0
         }
     },
-    "features": [
-        {
+    "features": {
+        "0": {
             "name": "PotatoRow",
             "box": {
                 "location": {
@@ -32,5 +32,5 @@
                 "row_width": 18
             }
         }
-    ]
+    }
 }

@@ -12,7 +12,7 @@ type GardenWidget struct {
 	widget.BaseWidget
 
 	// Feature Widgets
-	features []*FeatureWidget
+	features map[models.FeatureID]*FeatureWidget
 
 	// Controller reference
 	Controller *controllers.PlanController
@@ -47,18 +47,30 @@ func (g *GardenWidget) AddFeature(id models.FeatureID) {
 		g.SelectFeature(fw.FeatureID)
 		g.OnFeatureTapped(fw.FeatureID)
 	}
-	g.features = append(g.features, fw)
+	g.features[id] = fw
+}
+
+func (g *GardenWidget) RemoveFeature(id models.FeatureID) {
+	// Deselect all features.
+	g.SelectNone()
+
+	// Remove feature.
+	g.features[id].Hide()
 }
 
 func (g *GardenWidget) SelectFeature(id models.FeatureID) {
-	// Deselect other features.
-	for i := range g.features {
-		g.features[i].Deselect()
-	}
+	g.SelectNone()
 
 	// Select this feature.
 	g.features[id].Select()
 	g.Refresh()
+}
+
+func (g *GardenWidget) SelectNone() {
+	// Deselect other features.
+	for i := range g.features {
+		g.features[i].Deselect()
+	}
 }
 
 // Opens a plan for viewing.
@@ -77,6 +89,7 @@ func (g *GardenWidget) OpenPlan(controller *controllers.PlanController) {
 func NewGardenWidget(controller *controllers.PlanController) *GardenWidget {
 	gardenWidget := &GardenWidget{
 		Controller:             controller,
+		features:               map[models.FeatureID]*FeatureWidget{},
 		OnFeatureDragged:       func(id models.FeatureID, e *fyne.DragEvent) {},
 		OnFeatureDragEnd:       func(id models.FeatureID) {},
 		OnFeatureHandleDragged: func(id models.FeatureID, edge geometry.BoxEdge, e *fyne.DragEvent) {},
@@ -105,13 +118,13 @@ func (g gardenRenderer) Destroy() {
 
 // Layout implements fyne.WidgetRenderer.
 func (g gardenRenderer) Layout(fyne.Size) {
-	for _, f := range g.parent.features {
-		box := g.parent.Controller.Plan.Features[f.FeatureID].Box
-		f.Resize(fyne.NewSize(
+	for i := range g.parent.features {
+		box := g.parent.Controller.Plan.Features[i].Box
+		g.parent.features[i].Resize(fyne.NewSize(
 			box.Size.X*g.parent.Controller.DisplayConfig.Scale,
 			box.Size.Y*g.parent.Controller.DisplayConfig.Scale,
 		))
-		f.Move(fyne.NewPos(
+		g.parent.features[i].Move(fyne.NewPos(
 			box.Location.X*g.parent.Controller.DisplayConfig.Scale,
 			box.Location.Y*g.parent.Controller.DisplayConfig.Scale,
 		))

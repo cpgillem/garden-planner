@@ -1,6 +1,10 @@
 package main
 
-import "github.com/cpgillem/garden-planner/models"
+import (
+	"fmt"
+
+	"github.com/cpgillem/garden-planner/models"
+)
 
 func main() {
 	// Load basic data the program needs.
@@ -9,7 +13,10 @@ func main() {
 	gardenPlanner := NewGardenPlanner(gardenData)
 
 	// Load test plan for now.
-	testPlan, _ := ReadObjectFromFile[models.Plan]("test_data/layout1.json")
+	testPlan, err := ReadObjectFromFile[models.Plan]("test_data/layout1.json")
+	if err != nil {
+		fmt.Println(err.Error())
+	}
 	gardenPlanner.OpenPlan(testPlan)
 
 	// Display UI.
