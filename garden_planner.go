@@ -31,7 +31,6 @@ type GardenPlanner struct {
 	Toolbar       *widget.Toolbar
 	StatusBar     *widget.Label
 	PropertyTable *fyne.Container
-	FeatureList   *widget.List
 	FeatureTools  *fyne.Container
 
 	// Button References
@@ -57,7 +56,6 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 	toolbar := widget.NewToolbar()
 	statusBar := widget.NewLabel("")
 	mainContainer := container.NewBorder(toolbar, nil, sidebar, nil, gardenWidget)
-	featureList := widget.NewList(func() int { return 0 }, func() fyne.CanvasObject { return widget.NewLabel("") }, func(lii widget.ListItemID, co fyne.CanvasObject) {})
 	propertyTable := container.New(layout.NewFormLayout())
 	formatter := ui.NewFormatter(&mainWindow)
 	featureTools := container.NewHBox()
@@ -74,7 +72,6 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 		StatusBar:      statusBar,
 		GardenWidget:   gardenWidget,
 		FeatureTools:   featureTools,
-		FeatureList:    featureList,
 		PropertyTable:  propertyTable,
 		GardenData:     gardenData,
 		Formatter:      formatter,
@@ -94,6 +91,31 @@ func (p *GardenPlanner) Start() {
 	p.App.Run()
 }
 
+func (instance *GardenPlanner) FeatureSelected(id models.FeatureID) {
+	instance.SelectFeature(id)
+}
+
+func (instance *GardenPlanner) FeatureAdded(id models.FeatureID) {
+	instance.GardenWidget.AddFeature(id)
+	instance.SelectFeature(id)
+}
+
+func (instance *GardenPlanner) FeatureRemoved(id models.FeatureID) {
+	if instance.PlanController.GetSelectedFeature() == id {
+		instance.PropertyTable.RemoveAll()
+		instance.DeleteFeature.Disable()
+	}
+	instance.GardenWidget.RemoveFeature(id)
+}
+
+func (instance *GardenPlanner) FeatureDragEnd(id models.FeatureID) {
+	instance.Sidebar.Refresh()
+}
+
+func (instance *GardenPlanner) FeatureHandleDragEnd(id models.FeatureID, edge geometry.BoxEdge) {
+	instance.Sidebar.Refresh()
+}
+
 func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 	instance.ClosePlan()
 
@@ -107,76 +129,20 @@ func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 
 	// Setup Plan controller.
 	instance.PlanController = controllers.NewPlanController(plan, instance.DisplayConfig)
-
-	instance.PlanController.OnFeatureSelected = func(id models.FeatureID) {
-		instance.SelectFeature(id)
-	}
-
-	instance.PlanController.OnFeatureAdded = func(id models.FeatureID) {
-		instance.GardenWidget.AddFeature(id)
-		instance.SelectFeature(id)
-	}
-
-	instance.PlanController.OnFeatureRemoved = func(id models.FeatureID) {
-		if instance.PlanController.GetSelectedFeature() == id {
-			instance.PropertyTable.RemoveAll()
-			instance.DeleteFeature.Disable()
-		}
-		instance.GardenWidget.RemoveFeature(id)
-	}
+	instance.PlanController.OnFeatureSelected = instance.FeatureSelected
+	instance.PlanController.OnFeatureAdded = instance.FeatureAdded
+	instance.PlanController.OnFeatureRemoved = instance.FeatureRemoved
 
 	// Setup garden viewer widget.
 	instance.GardenWidget.OpenPlan(&instance.PlanController)
-
-	instance.GardenWidget.OnFeatureDragEnd = func(id models.FeatureID) {
-		instance.Sidebar.Refresh()
-	}
-
-	instance.GardenWidget.OnFeatureHandleDragEnd = func(id models.FeatureID, edge geometry.BoxEdge) {
-		instance.Sidebar.Refresh()
-	}
+	instance.GardenWidget.OnFeatureDragEnd = instance.FeatureDragEnd
+	instance.GardenWidget.OnFeatureHandleDragEnd = instance.FeatureHandleDragEnd
 
 	// Enable necessary feature buttons.
 	if instance.PlanController.HasSelection() {
 		instance.DeleteFeature.Enable()
 	}
 	instance.TemplateSelector.Enable()
-}
-
-func (instance *GardenPlanner) SetupFeatureList() {
-	// Setup Feature List
-	// Feature length comes from the plan.
-	featuresLength := func() int {
-		return instance.PlanController.LenFeatures()
-	}
-
-	// When a feature is added, create a label.
-	createFeature := func() fyne.CanvasObject {
-		// Use the longest named feature for the min size.
-		label := widget.NewLabel(instance.PlanController.GetMaxName())
-
-		return label
-	}
-
-	// When a feature is updated, set its text.
-	updateFeature := func(id widget.ListItemID, o fyne.CanvasObject) {
-		obj := o.(*widget.Label)
-		if instance.PlanController.HasFeature(models.FeatureID(id)) {
-			obj.SetText(instance.PlanController.Plan.Features[models.FeatureID(id)].Name)
-		} else {
-			obj.Hide()
-		}
-	}
-
-	// Recreate feature list to clear it.
-	instance.FeatureList = widget.NewList(featuresLength, createFeature, updateFeature)
-
-	// When a feature is selected, display its properties.
-	instance.FeatureList.OnSelected = func(id widget.ListItemID) {
-		instance.SelectFeature(models.FeatureID(id))
-	}
-
-	instance.FeatureList.Refresh()
 }
 
 // Updates the GUI when a feature is selected.
@@ -210,7 +176,6 @@ func (instance *GardenPlanner) AddFeatureProperties(id models.FeatureID) {
 	nameEntry.SetText(feature.Name)
 	nameEntry.OnSubmitted = func(s string) {
 		feature.Name = s
-		instance.FeatureList.Refresh()
 		instance.GardenWidget.Refresh()
 	}
 
@@ -285,7 +250,6 @@ func (instance *GardenPlanner) CreatePropertyWidget(property models.Property, fe
 // Cleans up the UI elements depending on a current plan.
 func (instance *GardenPlanner) ClosePlan() {
 	// instance.Content.RemoveAll()
-	instance.FeatureList = widget.NewList(func() int { return 0 }, func() fyne.CanvasObject { return widget.NewLabel("") }, func(lii widget.ListItemID, co fyne.CanvasObject) {})
 	instance.PropertyTable.RemoveAll()
 	instance.DeleteFeature.Disable()
 	instance.TemplateSelector.Disable()
@@ -340,9 +304,7 @@ func (instance *GardenPlanner) SetupFeatureTools() {
 	instance.FeatureTools.Add(instance.TemplateSelector)
 
 	// Setup Feature delete button.
-	instance.DeleteFeature = widget.NewButtonWithIcon("Delete", theme.DeleteIcon(), func() {
-		instance.PlanController.RemoveSelected()
-	})
+	instance.DeleteFeature = widget.NewButtonWithIcon("Delete", theme.DeleteIcon(), instance.PlanController.RemoveSelected)
 	instance.DeleteFeature.Disable()
 	instance.FeatureTools.Add(instance.DeleteFeature)
 }
