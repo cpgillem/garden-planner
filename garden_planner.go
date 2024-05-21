@@ -8,6 +8,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"github.com/bcicen/go-units"
 	"github.com/cpgillem/garden-planner/controllers"
 	"github.com/cpgillem/garden-planner/geometry"
 	"github.com/cpgillem/garden-planner/models"
@@ -57,7 +58,8 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 	statusBar := widget.NewLabel("")
 	mainContainer := container.NewBorder(toolbar, nil, sidebar, nil, gardenWidget)
 	propertyTable := container.New(layout.NewFormLayout())
-	formatter := ui.NewFormatter(&mainWindow)
+	// Use inches as a base unit for now.
+	formatter := ui.NewFormatter(units.Inch)
 	featureTools := container.NewHBox()
 
 	mainWindow.SetContent(mainContainer)
@@ -169,6 +171,9 @@ func (instance *GardenPlanner) AddFeatureProperties(id models.FeatureID) {
 	nameLabel := widget.NewLabel("Name")
 	boxLabel := widget.NewLabel("Box")
 	boxEditor := ui.NewBoxEditor(&feature.Box, instance.Formatter)
+	boxEditor.OnSubmitted = func(boxDelta geometry.Box) {
+		instance.GardenWidget.Refresh()
+	}
 
 	// Base built-in properties.
 	nameEntry := widget.NewEntry()
@@ -219,14 +224,14 @@ func (instance *GardenPlanner) CreatePropertyWidget(property models.Property, fe
 		case "dimension":
 			setValue, err := instance.Formatter.ToDimension(s)
 			if err != nil {
-				instance.Formatter.DimensionErrorDialog()
+				dialog.ShowError(err, instance.Window)
 				break
 			}
 			feature.Properties[property.Name] = setValue
 		case "decimal":
 			setValue, err := instance.Formatter.ToDecimal(s)
 			if err != nil {
-				instance.Formatter.DecimalErrorDialog()
+				dialog.ShowError(err, instance.Window)
 				break
 			}
 			feature.Properties[property.Name] = setValue
@@ -235,7 +240,7 @@ func (instance *GardenPlanner) CreatePropertyWidget(property models.Property, fe
 		case "integer":
 			setValue, err := instance.Formatter.ToInteger(s)
 			if err != nil {
-				instance.Formatter.IntegerErrorDialog()
+				dialog.ShowError(err, instance.Window)
 				break
 			}
 			feature.Properties[property.Name] = setValue
@@ -307,4 +312,14 @@ func (instance *GardenPlanner) SetupFeatureTools() {
 	instance.DeleteFeature = widget.NewButtonWithIcon("Delete", theme.DeleteIcon(), instance.PlanController.RemoveSelected)
 	instance.DeleteFeature.Disable()
 	instance.FeatureTools.Add(instance.DeleteFeature)
+}
+
+// Creates an entry widget with unit display, conversion, and arithmetic(?) features.
+func NewDimensionEntry(formatter *ui.Formatter, unit *units.Unit, initial float32) *widget.Entry {
+	entry := widget.NewEntry()
+
+	// Set defaults
+	entry.PlaceHolder = unit.Symbol
+
+	return entry
 }

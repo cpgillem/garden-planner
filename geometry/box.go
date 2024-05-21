@@ -7,6 +7,13 @@ const BOTTOM = BoxEdge(2)
 const LEFT = BoxEdge(3)
 const RIGHT = BoxEdge(4)
 
+type BoxCorner int
+
+const TOP_LEFT = BoxCorner(1)
+const TOP_RIGHT = BoxCorner(2)
+const BOTTOM_RIGHT = BoxCorner(3)
+const BOTTOM_LEFT = BoxCorner(4)
+
 // Bounding box with a location and size.
 // Locations are bottom-left origin.
 type Box struct {

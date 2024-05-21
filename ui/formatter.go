@@ -3,18 +3,18 @@ package ui
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/dialog"
+	"github.com/bcicen/go-units"
 )
 
 type Formatter struct {
-	window *fyne.Window
+	BaseUnit units.Unit
 }
 
-func NewFormatter(window *fyne.Window) *Formatter {
+func NewFormatter(baseUnit units.Unit) *Formatter {
 	return &Formatter{
-		window: window,
+		BaseUnit: baseUnit,
 	}
 }
 
@@ -22,47 +22,46 @@ func (formatter *Formatter) ToInteger(s string) (int, error) {
 	return strconv.Atoi(s)
 }
 
-// All-in-one function to convert to an integer and show a dialog if there is an error.
-// If there is an error, the value will be nil.
-func (formatter *Formatter) ToIntegerUI(s string) (int, bool) {
-	i, err := formatter.ToInteger(s)
-	if err != nil {
-		formatter.IntegerErrorDialog()
-		return 0, false
-	}
-
-	return i, true
-}
-
 func (formatter *Formatter) ToDecimal(s string) (float32, error) {
 	f, err := strconv.ParseFloat(s, 32)
 	return float32(f), err
 }
 
-func (formatter *Formatter) ToDecimalUI(s string) (float32, bool) {
-	f, err := formatter.ToDecimal(s)
-	if err != nil {
-		formatter.DecimalErrorDialog()
-		return 0, false
+// Parses a dimension with a quantity and a unit.
+// Normally, the input would be a float, followed by a space, followed by a symbol.
+// TODO: Accept units such as "
+func (formatter *Formatter) ToDimension(s string) (units.Value, error) {
+	zero := units.NewValue(0, formatter.BaseUnit)
+
+	// Check format.
+	firstSpace := strings.Index(strings.TrimSpace(s), " ")
+	if firstSpace < 0 {
+		return zero, NewDimensionError(s, "Dimension format: [quantity] [unit].")
 	}
 
-	return f, true
-}
+	// Parse out quantity and unit string.
+	qty := strings.TrimSpace(s[:firstSpace])
+	unitStr := strings.TrimSpace(s[firstSpace+1:])
 
-// TODO: This will become a more advanced type.
-func (formatter *Formatter) ToDimension(s string) (float32, error) {
-	f, err := strconv.ParseFloat(s, 32)
-	return float32(f), err
-}
-
-func (formatter *Formatter) ToDimensionUI(s string) (float32, bool) {
-	f, err := formatter.ToDecimal(s)
+	// Parse quantity to float.
+	f, err := strconv.ParseFloat(qty, 32)
 	if err != nil {
-		formatter.DimensionErrorDialog()
-		return 0, false
+		return zero, NewDimensionError(s, "Quantity must be a number.")
 	}
 
-	return f, true
+	// Parse unit string.
+	unit, err := units.Find(unitStr)
+	if err != nil {
+		return zero, NewDimensionError(s, "Unrecognizable unit.")
+	}
+
+	// Create value.
+	dim := units.NewValue(float64(f), unit)
+
+	// Convert to base unit if necessary.
+	converted := dim.MustConvert(formatter.BaseUnit)
+
+	return converted, nil
 }
 
 func (formatter *Formatter) FormatInteger(i int) string {
@@ -74,17 +73,26 @@ func (formatter *Formatter) FormatDecimal(f float32) string {
 }
 
 func (formatter *Formatter) FormatDimension(f float32) string {
-	return fmt.Sprintf("%.3f", f)
+	val := units.NewValue(float64(f), formatter.BaseUnit)
+	return val.Fmt(units.FmtOptions{
+		Label:     true,
+		Short:     true,
+		Precision: 6,
+	})
 }
 
-func (formatter *Formatter) IntegerErrorDialog() {
-	dialog.ShowInformation("Error", "Invalid integer.", *formatter.window)
+type DimensionError struct {
+	input string
+	msg   string
 }
 
-func (formatter *Formatter) DecimalErrorDialog() {
-	dialog.ShowInformation("Error", "Invalid decimal.", *formatter.window)
+func NewDimensionError(input string, msg string) DimensionError {
+	return DimensionError{
+		input: input,
+		msg:   msg,
+	}
 }
 
-func (formatter *Formatter) DimensionErrorDialog() {
-	dialog.ShowInformation("Error", "Invalid dimension.", *formatter.window)
+func (de DimensionError) Error() string {
+	return de.msg
 }

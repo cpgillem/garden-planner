@@ -30,6 +30,8 @@ type BoxEditor struct {
 
 	// Reference to formatter
 	Formatter *Formatter
+
+	OnSubmitted func(boxDelta geometry.Box)
 }
 
 func NewBoxEditor(box *geometry.Box, formatter *Formatter) *BoxEditor {
@@ -45,34 +47,43 @@ func NewBoxEditor(box *geometry.Box, formatter *Formatter) *BoxEditor {
 		HeightEntry: widget.NewEntry(),
 		container:   container.New(layout.NewFormLayout()),
 		Formatter:   formatter,
+		OnSubmitted: func(boxDelta geometry.Box) {},
 	}
 
 	boxEditor.XEntry.OnSubmitted = func(s string) {
-		if x, ok := formatter.ToDimensionUI(s); ok {
-			box.Location.X = x
+		x, err := formatter.ToDimension(s)
+		if err == nil {
+			box.Location.X = float32(x.Float())
 		}
 		boxEditor.Refresh()
+		boxEditor.OnSubmitted(geometry.NewBox(float32(x.Float()), 0, 0, 0))
 	}
 
 	boxEditor.YEntry.OnSubmitted = func(s string) {
-		if y, ok := formatter.ToDimensionUI(s); ok {
-			box.Location.Y = y
+		y, err := formatter.ToDimension(s)
+		if err == nil {
+			box.Location.Y = float32(y.Float())
 		}
 		boxEditor.Refresh()
+		boxEditor.OnSubmitted(geometry.NewBox(0, float32(y.Float()), 0, 0))
 	}
 
 	boxEditor.WidthEntry.OnSubmitted = func(s string) {
-		if width, ok := formatter.ToDimensionUI(s); ok {
-			box.Size.X = width
+		width, err := formatter.ToDimension(s)
+		if err == nil {
+			box.Location.X = float32(width.Float())
 		}
 		boxEditor.Refresh()
+		boxEditor.OnSubmitted(geometry.NewBox(0, 0, float32(width.Float()), 0))
 	}
 
 	boxEditor.HeightEntry.OnSubmitted = func(s string) {
-		if height, ok := formatter.ToDimensionUI(s); ok {
-			box.Size.Y = height
+		height, err := formatter.ToDimension(s)
+		if err == nil {
+			box.Location.X = float32(height.Float())
 		}
 		boxEditor.Refresh()
+		boxEditor.OnSubmitted(geometry.NewBox(0, 0, 0, float32(height.Float())))
 	}
 
 	boxEditor.container.Add(boxEditor.XLabel)
