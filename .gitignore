@@ -25,3 +25,6 @@ go.work.sum
 
 # Binary for this project
 garden-planner
+
+# Debugging
+__debug*
