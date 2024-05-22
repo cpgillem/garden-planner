@@ -5,6 +5,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+	"github.com/bcicen/go-units"
 	"github.com/cpgillem/garden-planner/geometry"
 )
 
@@ -17,73 +18,50 @@ type BoxEditor struct {
 	WidthLabel  *widget.Label
 	HeightLabel *widget.Label
 
-	XEntry      *widget.Entry
-	YEntry      *widget.Entry
-	WidthEntry  *widget.Entry
-	HeightEntry *widget.Entry
+	XEntry      *DimensionEntry
+	YEntry      *DimensionEntry
+	WidthEntry  *DimensionEntry
+	HeightEntry *DimensionEntry
 
 	// Container
 	container *fyne.Container
 
-	// Reference to box
-	Box *geometry.Box
-
 	// Reference to formatter
-	Formatter *Formatter
+	Formatter *DimensionFormatter
 
-	OnSubmitted func(boxDelta geometry.Box)
+	// Events
+	OnSubmitted func(newBox geometry.Box)
 }
 
-func NewBoxEditor(box *geometry.Box, formatter *Formatter) *BoxEditor {
+func NewBoxEditor(initialBox geometry.Box, baseUnit units.Unit, formatter *DimensionFormatter) *BoxEditor {
 	boxEditor := &BoxEditor{
-		Box:         box,
 		XLabel:      widget.NewLabel("X"),
 		YLabel:      widget.NewLabel("Y"),
 		WidthLabel:  widget.NewLabel("Width"),
 		HeightLabel: widget.NewLabel("Height"),
-		XEntry:      widget.NewEntry(),
-		YEntry:      widget.NewEntry(),
-		WidthEntry:  widget.NewEntry(),
-		HeightEntry: widget.NewEntry(),
+		XEntry:      NewDimensionEntry(units.NewValue(float64(initialBox.GetX()), baseUnit), formatter),
+		YEntry:      NewDimensionEntry(units.NewValue(float64(initialBox.GetY()), baseUnit), formatter),
+		WidthEntry:  NewDimensionEntry(units.NewValue(float64(initialBox.GetWidth()), baseUnit), formatter),
+		HeightEntry: NewDimensionEntry(units.NewValue(float64(initialBox.GetHeight()), baseUnit), formatter),
 		container:   container.New(layout.NewFormLayout()),
 		Formatter:   formatter,
-		OnSubmitted: func(boxDelta geometry.Box) {},
+		OnSubmitted: func(newBox geometry.Box) {},
 	}
 
-	boxEditor.XEntry.OnSubmitted = func(s string) {
-		x, err := formatter.ToDimension(s)
-		if err == nil {
-			box.Location.X = float32(x.Float())
-		}
-		boxEditor.Refresh()
-		boxEditor.OnSubmitted(geometry.NewBox(float32(x.Float()), 0, 0, 0))
+	boxEditor.XEntry.OnValueChanged = func(val units.Value) {
+		boxEditor.UpdateBox()
 	}
 
-	boxEditor.YEntry.OnSubmitted = func(s string) {
-		y, err := formatter.ToDimension(s)
-		if err == nil {
-			box.Location.Y = float32(y.Float())
-		}
-		boxEditor.Refresh()
-		boxEditor.OnSubmitted(geometry.NewBox(0, float32(y.Float()), 0, 0))
+	boxEditor.YEntry.OnValueChanged = func(val units.Value) {
+		boxEditor.UpdateBox()
 	}
 
-	boxEditor.WidthEntry.OnSubmitted = func(s string) {
-		width, err := formatter.ToDimension(s)
-		if err == nil {
-			box.Location.X = float32(width.Float())
-		}
-		boxEditor.Refresh()
-		boxEditor.OnSubmitted(geometry.NewBox(0, 0, float32(width.Float()), 0))
+	boxEditor.WidthEntry.OnValueChanged = func(val units.Value) {
+		boxEditor.UpdateBox()
 	}
 
-	boxEditor.HeightEntry.OnSubmitted = func(s string) {
-		height, err := formatter.ToDimension(s)
-		if err == nil {
-			box.Location.X = float32(height.Float())
-		}
-		boxEditor.Refresh()
-		boxEditor.OnSubmitted(geometry.NewBox(0, 0, 0, float32(height.Float())))
+	boxEditor.HeightEntry.OnValueChanged = func(val units.Value) {
+		boxEditor.UpdateBox()
 	}
 
 	boxEditor.container.Add(boxEditor.XLabel)
@@ -100,15 +78,26 @@ func NewBoxEditor(box *geometry.Box, formatter *Formatter) *BoxEditor {
 	return boxEditor
 }
 
+// Called when one of the entries is successfully submitted.
+func (b *BoxEditor) UpdateBox() {
+	newBox := geometry.NewBox(
+		float32(b.XEntry.MustGetValue().Float()),
+		float32(b.YEntry.MustGetValue().Float()),
+		float32(b.WidthEntry.MustGetValue().Float()),
+		float32(b.HeightEntry.MustGetValue().Float()),
+	)
+	b.OnSubmitted(newBox)
+}
+
+func (b *BoxEditor) SetBox(box geometry.Box) {
+	b.XEntry.SetValue(units.NewValue(float64(box.GetX()), b.XEntry.baseUnit))
+	b.YEntry.SetValue(units.NewValue(float64(box.GetX()), b.YEntry.baseUnit))
+	b.WidthEntry.SetValue(units.NewValue(float64(box.GetWidth()), b.WidthEntry.baseUnit))
+	b.HeightEntry.SetValue(units.NewValue(float64(box.GetHeight()), b.HeightEntry.baseUnit))
+}
+
 func (b *BoxEditor) CreateRenderer() fyne.WidgetRenderer {
 	renderer := widget.NewSimpleRenderer(b.container)
 	return renderer
 
-}
-
-func (b *BoxEditor) Refresh() {
-	b.XEntry.SetText(b.Formatter.FormatDimension(b.Box.Location.X))
-	b.YEntry.SetText(b.Formatter.FormatDimension(b.Box.Location.Y))
-	b.WidthEntry.SetText(b.Formatter.FormatDimension(b.Box.Size.X))
-	b.HeightEntry.SetText(b.Formatter.FormatDimension(b.Box.Size.Y))
 }

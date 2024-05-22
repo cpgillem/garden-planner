@@ -8,21 +8,27 @@ import (
 	"github.com/bcicen/go-units"
 )
 
-type Formatter struct {
-	BaseUnit units.Unit
+var AnyUnit units.Unit = units.NewUnit("Any", "")
+
+type DimensionFormatter struct {
+	fmtOptions units.FmtOptions
 }
 
-func NewFormatter(baseUnit units.Unit) *Formatter {
-	return &Formatter{
-		BaseUnit: baseUnit,
+func NewFormatter() *DimensionFormatter {
+	return &DimensionFormatter{
+		fmtOptions: units.FmtOptions{
+			Label:     true,
+			Short:     true,
+			Precision: 6,
+		},
 	}
 }
 
-func (formatter *Formatter) ToInteger(s string) (int, error) {
+func (formatter *DimensionFormatter) ToInteger(s string) (int, error) {
 	return strconv.Atoi(s)
 }
 
-func (formatter *Formatter) ToDecimal(s string) (float32, error) {
+func (formatter *DimensionFormatter) ToDecimal(s string) (float32, error) {
 	f, err := strconv.ParseFloat(s, 32)
 	return float32(f), err
 }
@@ -30,8 +36,8 @@ func (formatter *Formatter) ToDecimal(s string) (float32, error) {
 // Parses a dimension with a quantity and a unit.
 // Normally, the input would be a float, followed by a space, followed by a symbol.
 // TODO: Accept units such as "
-func (formatter *Formatter) ToDimension(s string) (units.Value, error) {
-	zero := units.NewValue(0, formatter.BaseUnit)
+func (formatter *DimensionFormatter) ToDimension(s string) (units.Value, error) {
+	zero := units.NewValue(0, AnyUnit)
 
 	// Check format.
 	firstSpace := strings.Index(strings.TrimSpace(s), " ")
@@ -56,29 +62,36 @@ func (formatter *Formatter) ToDimension(s string) (units.Value, error) {
 	}
 
 	// Create value.
-	dim := units.NewValue(float64(f), unit)
+	value := units.NewValue(float64(f), unit)
 
-	// Convert to base unit if necessary.
-	converted := dim.MustConvert(formatter.BaseUnit)
-
-	return converted, nil
+	return value, nil
 }
 
-func (formatter *Formatter) FormatInteger(i int) string {
+// Useful if you would like to accept any dimension and convert it to a default unit.
+func (formatter *DimensionFormatter) ToDimensionBaseUnit(s string, baseUnit units.Unit) (units.Value, error) {
+	value, err := formatter.ToDimension(s)
+
+	if err != nil {
+		return value, err
+	}
+
+	if value.Unit().Name != baseUnit.Name {
+		return value.MustConvert(baseUnit), nil
+	}
+
+	return value, nil
+}
+
+func (formatter *DimensionFormatter) FormatInteger(i int) string {
 	return strconv.Itoa(i)
 }
 
-func (formatter *Formatter) FormatDecimal(f float32) string {
+func (formatter *DimensionFormatter) FormatDecimal(f float32) string {
 	return fmt.Sprintf("%.3f", f)
 }
 
-func (formatter *Formatter) FormatDimension(f float32) string {
-	val := units.NewValue(float64(f), formatter.BaseUnit)
-	return val.Fmt(units.FmtOptions{
-		Label:     true,
-		Short:     true,
-		Precision: 6,
-	})
+func (formatter *DimensionFormatter) FormatDimension(value units.Value) string {
+	return value.Fmt(formatter.fmtOptions)
 }
 
 type DimensionError struct {

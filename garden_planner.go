@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
@@ -33,6 +35,7 @@ type GardenPlanner struct {
 	StatusBar     *widget.Label
 	PropertyTable *fyne.Container
 	FeatureTools  *fyne.Container
+	BoxEditor     *ui.BoxEditor
 
 	// Button References
 	DeleteFeature    *widget.Button
@@ -40,7 +43,7 @@ type GardenPlanner struct {
 
 	// Data
 	GardenData    *GardenData
-	Formatter     *ui.Formatter
+	Formatter     *ui.DimensionFormatter
 	DisplayConfig *models.DisplayConfig
 }
 
@@ -58,9 +61,9 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 	statusBar := widget.NewLabel("")
 	mainContainer := container.NewBorder(toolbar, nil, sidebar, nil, gardenWidget)
 	propertyTable := container.New(layout.NewFormLayout())
-	// Use inches as a base unit for now.
-	formatter := ui.NewFormatter(units.Inch)
+	formatter := ui.NewFormatter()
 	featureTools := container.NewHBox()
+	boxEditor := ui.NewBoxEditor(geometry.NewBoxZero(), ui.AnyUnit, formatter)
 
 	mainWindow.SetContent(mainContainer)
 
@@ -70,6 +73,7 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 		Window:         mainWindow,
 		MainContainer:  mainContainer,
 		Sidebar:        sidebar,
+		BoxEditor:      boxEditor,
 		Toolbar:        toolbar,
 		StatusBar:      statusBar,
 		GardenWidget:   gardenWidget,
@@ -111,6 +115,7 @@ func (instance *GardenPlanner) FeatureRemoved(id models.FeatureID) {
 }
 
 func (instance *GardenPlanner) FeatureDragEnd(id models.FeatureID) {
+	instance.BoxEditor.SetBox(instance.PlanController.Plan.Features[id].Box)
 	instance.Sidebar.Refresh()
 }
 
@@ -170,10 +175,12 @@ func (instance *GardenPlanner) AddFeatureProperties(id models.FeatureID) {
 	feature := instance.PlanController.Plan.Features[id]
 	nameLabel := widget.NewLabel("Name")
 	boxLabel := widget.NewLabel("Box")
-	boxEditor := ui.NewBoxEditor(&feature.Box, instance.Formatter)
-	boxEditor.OnSubmitted = func(boxDelta geometry.Box) {
+	boxEditor := ui.NewBoxEditor(feature.Box, units.Inch, instance.Formatter)
+	boxEditor.OnSubmitted = func(newBox geometry.Box) {
+		feature.Box = newBox
 		instance.GardenWidget.Refresh()
 	}
+	instance.BoxEditor = boxEditor
 
 	// Base built-in properties.
 	nameEntry := widget.NewEntry()
@@ -192,64 +199,81 @@ func (instance *GardenPlanner) AddFeatureProperties(id models.FeatureID) {
 	// Custom properties on feature.
 	for propertyName := range feature.Properties {
 		label := widget.NewLabel(instance.GardenData.Properties[propertyName].DisplayName)
-		entry := instance.CreatePropertyWidget(instance.GardenData.Properties[propertyName], feature)
+		entry, err := instance.CreatePropertyWidget(instance.GardenData.Properties[propertyName], feature)
+		if err != nil {
+			// Don't add anything if the property can't be read.
+			fmt.Printf("Warning: %s\n", err.Error())
+			continue
+		}
 		instance.PropertyTable.Add(label)
 		instance.PropertyTable.Add(entry)
 	}
 }
 
 // Creates a widget for modifying a property on a feature.
-func (instance *GardenPlanner) CreatePropertyWidget(property models.Property, feature *models.Feature) *widget.Entry {
+func (instance *GardenPlanner) CreatePropertyWidget(property models.Property, feature *models.Feature) (fyne.Widget, error) {
 	// TODO: Custom widgets for property types.
 	// TODO: formatting parameters.
 	value := feature.Properties[property.Name]
-	str := ""
 
 	switch property.PropertyType {
 	case "dimension":
-		str = instance.Formatter.FormatDimension(float32(value.(float64)))
+		// Dimensions are stored as strings in files.
+		val, err := instance.Formatter.ToDimension(value.(string))
+		if err != nil {
+			fmt.Printf("Warning on property %s.%s: %s\n", feature.Name, property.Name, err.Error())
+		}
+		entry := ui.NewDimensionEntry(val, instance.Formatter)
+		entry.OnDimensionError = func(err error) {
+			dialog.ShowError(err, instance.Window)
+		}
+		entry.OnValueChanged = func(val units.Value) {
+			feature.Properties[property.Name] = instance.Formatter.FormatDimension(val)
+			instance.MainContainer.Refresh()
+		}
+		return entry, nil
 	case "decimal":
-		str = instance.Formatter.FormatDecimal(float32(value.(float64)))
-	case "text":
-		str = value.(string)
-	case "integer":
-		str = instance.Formatter.FormatInteger(value.(int))
-	}
-	entry := widget.NewEntry()
-	entry.SetText(str)
-
-	// Setup events.
-	entry.OnSubmitted = func(s string) {
-		switch property.PropertyType {
-		case "dimension":
-			setValue, err := instance.Formatter.ToDimension(s)
-			if err != nil {
-				dialog.ShowError(err, instance.Window)
-				break
-			}
-			feature.Properties[property.Name] = setValue
-		case "decimal":
+		// TODO: Numerical entry widget.
+		entry := widget.NewEntry()
+		entry.SetText(instance.Formatter.FormatDecimal(float32(value.(float64))))
+		entry.OnSubmitted = func(s string) {
 			setValue, err := instance.Formatter.ToDecimal(s)
 			if err != nil {
 				dialog.ShowError(err, instance.Window)
-				break
+				return
 			}
 			feature.Properties[property.Name] = setValue
-		case "text":
-			feature.Properties[property.Name] = s
-		case "integer":
+			instance.MainContainer.Refresh()
+		}
+		return entry, nil
+	case "integer":
+		entry := widget.NewEntry()
+		entry.SetText(instance.Formatter.FormatInteger(value.(int)))
+		entry.OnSubmitted = func(s string) {
 			setValue, err := instance.Formatter.ToInteger(s)
 			if err != nil {
 				dialog.ShowError(err, instance.Window)
-				break
+				return
 			}
 			feature.Properties[property.Name] = setValue
+			instance.MainContainer.Refresh()
 		}
-
-		instance.MainContainer.Refresh()
+		return entry, nil
+	case "string":
+		// Should be a string.
+		entry := widget.NewEntry()
+		entry.SetText(value.(string))
+		entry.OnSubmitted = func(s string) {
+			feature.Properties[property.Name] = s
+			instance.MainContainer.Refresh()
+		}
+		return entry, nil
+	default:
+		// Return a disabled entry and throw an error.
+		entry := widget.NewEntry()
+		entry.Disable()
+		return entry, fmt.Errorf("type not recognized on property %s: %s", property.Name, property.PropertyType)
 	}
-
-	return entry
 }
 
 // Cleans up the UI elements depending on a current plan.
@@ -312,14 +336,4 @@ func (instance *GardenPlanner) SetupFeatureTools() {
 	instance.DeleteFeature = widget.NewButtonWithIcon("Delete", theme.DeleteIcon(), instance.PlanController.RemoveSelected)
 	instance.DeleteFeature.Disable()
 	instance.FeatureTools.Add(instance.DeleteFeature)
-}
-
-// Creates an entry widget with unit display, conversion, and arithmetic(?) features.
-func NewDimensionEntry(formatter *ui.Formatter, unit *units.Unit, initial float32) *widget.Entry {
-	entry := widget.NewEntry()
-
-	// Set defaults
-	entry.PlaceHolder = unit.Symbol
-
-	return entry
 }

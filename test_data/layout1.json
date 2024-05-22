@@ -28,8 +28,8 @@
                 }
             },
             "properties": {
-                "plant_spacing": 18,
-                "row_width": 18
+                "plant_spacing": "18 in",
+                "row_width": "18 in"
             }
         }
     }

@@ -19,7 +19,7 @@ func TestToDimension(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		formatter := NewFormatter(c.inBaseUnit)
+		formatter := NewFormatter()
 		got, err := formatter.ToDimension(c.in)
 		if err != nil {
 			t.Errorf("ToDimension(%q): %q", c.in, err.Error())
@@ -42,7 +42,7 @@ func TestToDimension(t *testing.T) {
 	}
 
 	for _, c := range errCases {
-		formatter := NewFormatter(c.inBaseUnit)
+		formatter := NewFormatter()
 		_, err := formatter.ToDimension(c.in)
 		if err.Error() != c.wantMsg {
 			t.Errorf("ToDimension(%q); got %q, want %q", c.in, err.Error(), c.wantMsg)

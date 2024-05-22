@@ -52,3 +52,35 @@ func (aabb *Box) Copy() Box {
 		aabb.Size.Copy(),
 	}
 }
+
+func (box *Box) GetX() float32 {
+	return box.Location.X
+}
+
+func (box *Box) GetY() float32 {
+	return box.Location.Y
+}
+
+func (box *Box) GetWidth() float32 {
+	return box.Size.X
+}
+
+func (box *Box) GetHeight() float32 {
+	return box.Size.Y
+}
+
+func (box *Box) SetX(v float32) {
+	box.Location.X = v
+}
+
+func (box *Box) SetY(v float32) {
+	box.Location.Y = v
+}
+
+func (box *Box) SetWidth(v float32) {
+	box.Size.X = v
+}
+
+func (box *Box) SetHeight(v float32) {
+	box.Size.Y = v
+}
