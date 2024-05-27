@@ -11,19 +11,15 @@ type PlanController struct {
 
 	selectedFeature models.FeatureID
 
-	// Display data
-	DisplayConfig *models.DisplayConfig
-
 	// Defines how to refresh UI code.
 	OnFeatureSelected func(id models.FeatureID)
 	OnFeatureAdded    func(id models.FeatureID)
 	OnFeatureRemoved  func(id models.FeatureID)
 }
 
-func NewPlanController(plan *models.Plan, displayConfig *models.DisplayConfig) PlanController {
+func NewPlanController(plan *models.Plan) PlanController {
 	return PlanController{
 		Plan:              plan,
-		DisplayConfig:     displayConfig,
 		OnFeatureSelected: func(id models.FeatureID) {},
 		OnFeatureAdded:    func(id models.FeatureID) {},
 		OnFeatureRemoved:  func(id models.FeatureID) {},

@@ -14,6 +14,12 @@ type GardenWidget struct {
 	// Feature Widgets
 	features map[models.FeatureID]*FeatureWidget
 
+	// Drawing Settings
+	// Scale is internal to the garden widget.
+	// Base unit for the garden widget. All values are converted to this unit before being
+	// multiplied by the scale.
+	DisplayConfig *models.DisplayConfig
+
 	// Controller reference
 	Controller *controllers.PlanController
 
@@ -25,9 +31,28 @@ type GardenWidget struct {
 	OnFeatureTapped        func(id models.FeatureID)
 }
 
+// Create a new garden widget. Requires a plan.
+func NewGardenWidget(controller *controllers.PlanController, displayConfig *models.DisplayConfig) *GardenWidget {
+	gardenWidget := &GardenWidget{
+		Controller:             controller,
+		DisplayConfig:          displayConfig,
+		features:               map[models.FeatureID]*FeatureWidget{},
+		OnFeatureDragged:       func(id models.FeatureID, e *fyne.DragEvent) {},
+		OnFeatureDragEnd:       func(id models.FeatureID) {},
+		OnFeatureHandleDragged: func(id models.FeatureID, edge geometry.BoxEdge, e *fyne.DragEvent) {},
+		OnFeatureHandleDragEnd: func(id models.FeatureID, edge geometry.BoxEdge) {},
+		OnFeatureTapped:        func(id models.FeatureID) {},
+	}
+
+	gardenWidget.OpenPlan(gardenWidget.Controller)
+
+	gardenWidget.ExtendBaseWidget(gardenWidget)
+	return gardenWidget
+}
+
 // Create a new feature widget.
 func (g *GardenWidget) AddFeature(id models.FeatureID) {
-	fw := NewFeatureWidget(id, g.Controller)
+	fw := NewFeatureWidget(id, g.Controller, g.DisplayConfig)
 	fw.OnDragEnd = func() {
 		g.Refresh()
 		g.OnFeatureDragEnd(fw.FeatureID)
@@ -85,24 +110,6 @@ func (g *GardenWidget) OpenPlan(controller *controllers.PlanController) {
 	g.Refresh()
 }
 
-// Create a new garden widget. Requires a plan.
-func NewGardenWidget(controller *controllers.PlanController) *GardenWidget {
-	gardenWidget := &GardenWidget{
-		Controller:             controller,
-		features:               map[models.FeatureID]*FeatureWidget{},
-		OnFeatureDragged:       func(id models.FeatureID, e *fyne.DragEvent) {},
-		OnFeatureDragEnd:       func(id models.FeatureID) {},
-		OnFeatureHandleDragged: func(id models.FeatureID, edge geometry.BoxEdge, e *fyne.DragEvent) {},
-		OnFeatureHandleDragEnd: func(id models.FeatureID, edge geometry.BoxEdge) {},
-		OnFeatureTapped:        func(id models.FeatureID) {},
-	}
-
-	gardenWidget.OpenPlan(gardenWidget.Controller)
-
-	gardenWidget.ExtendBaseWidget(gardenWidget)
-	return gardenWidget
-}
-
 func (w *GardenWidget) CreateRenderer() fyne.WidgetRenderer {
 	return newGardenRenderer(w)
 }
@@ -121,12 +128,12 @@ func (g gardenRenderer) Layout(fyne.Size) {
 	for i := range g.parent.features {
 		box := g.parent.Controller.Plan.Features[i].Box
 		g.parent.features[i].Resize(fyne.NewSize(
-			box.Size.X*g.parent.Controller.DisplayConfig.Scale,
-			box.Size.Y*g.parent.Controller.DisplayConfig.Scale,
+			box.Size.X*g.parent.DisplayConfig.Scale,
+			box.Size.Y*g.parent.DisplayConfig.Scale,
 		))
 		g.parent.features[i].Move(fyne.NewPos(
-			box.Location.X*g.parent.Controller.DisplayConfig.Scale,
-			box.Location.Y*g.parent.Controller.DisplayConfig.Scale,
+			box.Location.X*g.parent.DisplayConfig.Scale,
+			box.Location.Y*g.parent.DisplayConfig.Scale,
 		))
 	}
 }
@@ -135,8 +142,8 @@ func (g gardenRenderer) Layout(fyne.Size) {
 func (g gardenRenderer) MinSize() fyne.Size {
 	size := g.parent.Controller.Plan.Box.Size
 	return fyne.NewSize(
-		size.X*g.parent.Controller.DisplayConfig.Scale,
-		size.Y*g.parent.Controller.DisplayConfig.Scale,
+		size.X*g.parent.DisplayConfig.Scale,
+		size.Y*g.parent.DisplayConfig.Scale,
 	)
 }
 

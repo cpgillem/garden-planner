@@ -65,8 +65,8 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 	displayConfig := models.NewDisplayConfig()
 	sidebar := container.NewVBox()
 	blankPlan := models.NewPlan()
-	planController := controllers.NewPlanController(blankPlan, &displayConfig)
-	gardenWidget := ui.NewGardenWidget(&planController)
+	planController := controllers.NewPlanController(blankPlan)
+	gardenWidget := ui.NewGardenWidget(&planController, &displayConfig)
 	toolbar := widget.NewToolbar()
 	statusBar := widget.NewLabel("")
 	mainContainer := container.NewBorder(toolbar, nil, sidebar, nil, gardenWidget)
@@ -151,7 +151,7 @@ func (instance *GardenPlanner) OpenPlan(plan *models.Plan) {
 	// TODO: Make displayconfig loadable from a file.
 
 	// Setup Plan controller.
-	instance.PlanController = controllers.NewPlanController(plan, instance.DisplayConfig)
+	instance.PlanController = controllers.NewPlanController(plan)
 	instance.PlanController.OnFeatureSelected = instance.FeatureSelected
 	instance.PlanController.OnFeatureAdded = instance.FeatureAdded
 	instance.PlanController.OnFeatureRemoved = instance.FeatureRemoved
