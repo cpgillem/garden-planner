@@ -17,10 +17,16 @@ import (
 	"github.com/cpgillem/garden-planner/ui"
 )
 
+const IMPERIAL string = "imperial"
+const METRIC string = "metric"
+
 // Represents the state of the application.
 type GardenPlanner struct {
-	App    fyne.App
-	Window fyne.Window
+	App fyne.App
+
+	// Windows
+	Window         fyne.Window
+	SettingsWindow SettingsWindow
 
 	// Containers
 	MainContainer *fyne.Container
@@ -50,8 +56,12 @@ type GardenPlanner struct {
 // Creates a new instance of the app.
 func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 	// Setup UI elements
-	mainApp := app.New()
+	mainApp := app.NewWithID("net.cpgworld.garden-planner.preferences")
+
+	// Windows
 	mainWindow := mainApp.NewWindow("Garden Planner")
+
+	// Main Window
 	displayConfig := models.NewDisplayConfig()
 	sidebar := container.NewVBox()
 	blankPlan := models.NewPlan()
@@ -66,6 +76,9 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 	boxEditor := ui.NewBoxEditor(geometry.NewBoxZero(), ui.AnyUnit, formatter)
 
 	mainWindow.SetContent(mainContainer)
+	mainApp.Preferences().AddChangeListener(func() {
+		fmt.Println(mainApp.Preferences().IntWithFallback("test", 13))
+	})
 
 	// Create new app instance
 	gardenPlanner := GardenPlanner{
@@ -88,6 +101,9 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 	// Setup Toolbar
 	gardenPlanner.SetupToolbar()
 	gardenPlanner.SetupFeatureTools()
+
+	// Other windows
+	gardenPlanner.SettingsWindow = NewSettingsWindow(&gardenPlanner)
 
 	return &gardenPlanner
 }
@@ -313,6 +329,12 @@ func (instance *GardenPlanner) SetupToolbar() {
 				WriteObject(writer, instance.PlanController.Plan)
 			}
 		}, instance.Window)
+	}))
+
+	// Settings
+	instance.Toolbar.Append(widget.NewToolbarAction(theme.SettingsIcon(), func() {
+		// Display the settings window.
+		instance.SettingsWindow.Show()
 	}))
 }
 

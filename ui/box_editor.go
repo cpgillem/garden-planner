@@ -81,10 +81,10 @@ func NewBoxEditor(initialBox geometry.Box, baseUnit units.Unit, formatter *Dimen
 // Called when one of the entries is successfully submitted.
 func (b *BoxEditor) UpdateBox() {
 	newBox := geometry.NewBox(
-		float32(b.XEntry.MustGetValue().Float()),
-		float32(b.YEntry.MustGetValue().Float()),
-		float32(b.WidthEntry.MustGetValue().Float()),
-		float32(b.HeightEntry.MustGetValue().Float()),
+		float32(b.XEntry.GetValue().Float()),
+		float32(b.YEntry.GetValue().Float()),
+		float32(b.WidthEntry.GetValue().Float()),
+		float32(b.HeightEntry.GetValue().Float()),
 	)
 	b.OnSubmitted(newBox)
 }

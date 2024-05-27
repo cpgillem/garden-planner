@@ -56,30 +56,21 @@ func (e *DimensionEntry) Reset() {
 }
 
 func (e *DimensionEntry) SetValue(value units.Value) {
-	e.value = value
+	e.value = value.MustConvert(e.baseUnit)
 	e.Reset()
 }
 
-// Parses the value out of the dimension entry's text. If it happens to be invalid, throws an error.
-func (e *DimensionEntry) GetValue() (units.Value, error) {
-	value, err := e.dimensionFormatter.ToDimensionBaseUnit(e.Text, e.baseUnit)
-	if err != nil {
-		z := units.NewValue(0, e.baseUnit)
-
-		// Reset the value if the text happens to be incorrect.
-		e.SetValue(z)
-		return z, err
-	}
-
-	return value, nil
+func (e *DimensionEntry) SetValueAndBaseUnit(value units.Value) {
+	e.value = value
+	e.baseUnit = value.Unit()
+	e.Reset()
 }
 
 // Tries to parse the dimension entry's text, and returns 0 if impossible.
-func (e *DimensionEntry) MustGetValue() units.Value {
-	value, _ := e.GetValue()
-	return value
+func (e *DimensionEntry) GetValue() units.Value {
+	return e.value
 }
 
-func (e *DimensionEntry) Submitted() {
-
+func (e *DimensionEntry) GetValueAsText() string {
+	return e.dimensionFormatter.FormatDimension(e.value)
 }
