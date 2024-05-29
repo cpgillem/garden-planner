@@ -22,7 +22,7 @@ type FeatureWidget struct {
 	RightHandle  *Handle
 
 	// Drawing configuration
-	DisplayConfig *models.DisplayConfig
+	scale float32
 
 	// Internal data
 	FeatureID models.FeatureID
@@ -40,11 +40,11 @@ type FeatureWidget struct {
 }
 
 // Create a new widget representing a landscaping feature.
-func NewFeatureWidget(id models.FeatureID, controller *controllers.PlanController, displayConfig *models.DisplayConfig) *FeatureWidget {
+func NewFeatureWidget(id models.FeatureID, controller *controllers.PlanController, scale float32) *FeatureWidget {
 	fw := FeatureWidget{
 		FeatureID:       id,
 		Controller:      controller,
-		DisplayConfig:   displayConfig,
+		scale:           scale,
 		selected:        false,
 		OnDragEnd:       func() {},
 		OnDragged:       func(e *fyne.DragEvent) {},
@@ -98,8 +98,8 @@ func (fw *FeatureWidget) Tapped(e *fyne.PointEvent) {
 }
 func (fw *FeatureWidget) Dragged(e *fyne.DragEvent) {
 	boxDelta := geometry.NewBox(
-		e.Dragged.DX/fw.DisplayConfig.Scale,
-		e.Dragged.DY/fw.DisplayConfig.Scale,
+		e.Dragged.DX/fw.scale,
+		e.Dragged.DY/fw.scale,
 		0,
 		0,
 	)
@@ -111,8 +111,8 @@ func (fw *FeatureWidget) DragEnd() {
 }
 
 func (fw *FeatureWidget) HandleDragged(edge geometry.BoxEdge, e *fyne.DragEvent) {
-	dx := e.Dragged.DX / fw.DisplayConfig.Scale
-	dy := e.Dragged.DY / fw.DisplayConfig.Scale
+	dx := e.Dragged.DX / fw.scale
+	dy := e.Dragged.DY / fw.scale
 	dbox := geometry.NewBoxZero()
 
 	// Handle edge cases (lol)

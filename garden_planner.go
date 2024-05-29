@@ -66,7 +66,7 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 	sidebar := container.NewVBox()
 	blankPlan := models.NewPlan()
 	planController := controllers.NewPlanController(blankPlan)
-	gardenWidget := ui.NewGardenWidget(&planController, &displayConfig)
+	gardenWidget := ui.NewGardenWidget(&planController, displayConfig.Scale, float32(displayConfig.GridSpacing.Float()))
 	toolbar := widget.NewToolbar()
 	statusBar := widget.NewLabel("")
 	mainContainer := container.NewBorder(toolbar, nil, sidebar, nil, gardenWidget)

@@ -26,10 +26,8 @@ type GardenWidget struct {
 	vGridlines []*canvas.Line
 
 	// Drawing Settings
-	// Scale is internal to the garden widget.
-	// Base unit for the garden widget. All values are converted to this unit before being
-	// multiplied by the scale.
-	DisplayConfig *models.DisplayConfig
+	scale       float32
+	gridSpacing float32
 
 	// Controller reference
 	Controller *controllers.PlanController
@@ -42,11 +40,18 @@ type GardenWidget struct {
 	OnFeatureTapped        func(id models.FeatureID)
 }
 
-// Create a new garden widget. Requires a plan.
-func NewGardenWidget(controller *controllers.PlanController, displayConfig *models.DisplayConfig) *GardenWidget {
+// Create a new garden widget. Requires a plan. Agnostic to base units.
+//
+// controller allows the widget to modify features.
+//
+// scale is a multiplier on the base unit for display.
+//
+// gridSpacing defines how many base units between each gridline.
+func NewGardenWidget(controller *controllers.PlanController, scale float32, gridSpacing float32) *GardenWidget {
 	gardenWidget := &GardenWidget{
 		Controller:             controller,
-		DisplayConfig:          displayConfig,
+		scale:                  scale,
+		gridSpacing:            gridSpacing,
 		features:               map[models.FeatureID]*FeatureWidget{},
 		OnFeatureDragged:       func(id models.FeatureID, e *fyne.DragEvent) {},
 		OnFeatureDragEnd:       func(id models.FeatureID) {},
@@ -67,7 +72,7 @@ func NewGardenWidget(controller *controllers.PlanController, displayConfig *mode
 
 // Create a new feature widget.
 func (g *GardenWidget) AddFeature(id models.FeatureID) {
-	fw := NewFeatureWidget(id, g.Controller, g.DisplayConfig)
+	fw := NewFeatureWidget(id, g.Controller, g.scale)
 	fw.OnDragEnd = func() {
 		g.Refresh()
 		g.OnFeatureDragEnd(fw.FeatureID)
@@ -116,8 +121,8 @@ func (g *GardenWidget) SelectNone() {
 // Recreates the gridline cache upon changes to the plan.
 func (g *GardenWidget) CalculateGridlines() {
 	// Calculate gridline counts.
-	vGridlines := int(math.Floor(float64(g.Controller.Plan.Box.GetWidth()) / g.DisplayConfig.GridSpacing.Float()))
-	hGridlines := int(math.Floor(float64(g.Controller.Plan.Box.GetHeight()) / g.DisplayConfig.GridSpacing.Float()))
+	vGridlines := int(math.Floor(float64(g.Controller.Plan.Box.GetWidth()) / float64(g.gridSpacing)))
+	hGridlines := int(math.Floor(float64(g.Controller.Plan.Box.GetHeight()) / float64(g.gridSpacing)))
 
 	// Empty gridline cache.
 	g.hGridlines = []*canvas.Line{}
@@ -152,6 +157,15 @@ func (w *GardenWidget) CreateRenderer() fyne.WidgetRenderer {
 	return newGardenRenderer(w)
 }
 
+// Events
+
+// On scroll, adjust the scale.
+func (w *GardenWidget) Scrolled(e *fyne.ScrollEvent) {
+	adjDY := e.Scrolled.DY / 250
+	w.scale += adjDY
+	w.Refresh()
+}
+
 type gardenRenderer struct {
 	parent *GardenWidget
 
@@ -181,15 +195,15 @@ func (g gardenRenderer) Layout(s fyne.Size) {
 	g.parent.background.StrokeColor = colornames.Black
 	g.parent.background.Move(fyne.NewPos(0, 0))
 	g.parent.background.Resize(fyne.NewSize(
-		g.parent.Controller.Plan.Box.GetWidth()*g.parent.DisplayConfig.Scale,
-		g.parent.Controller.Plan.Box.GetHeight()*g.parent.DisplayConfig.Scale,
+		g.parent.Controller.Plan.Box.GetWidth()*g.parent.scale,
+		g.parent.Controller.Plan.Box.GetHeight()*g.parent.scale,
 	))
 
 	// Layout horizontal gridlines.
 	for i := range g.parent.hGridlines {
-		y := float32(float64(i) * g.parent.DisplayConfig.GridSpacing.Float() * float64(g.parent.DisplayConfig.Scale))
+		y := float32(float64(i) * float64(g.parent.gridSpacing) * float64(g.parent.scale))
 		var left float32 = 0
-		var right float32 = g.parent.Controller.Plan.Box.GetWidth() * g.parent.DisplayConfig.Scale
+		var right float32 = g.parent.Controller.Plan.Box.GetWidth() * g.parent.scale
 		g.parent.hGridlines[i].Position1 = fyne.NewPos(
 			left,
 			y,
@@ -202,9 +216,9 @@ func (g gardenRenderer) Layout(s fyne.Size) {
 
 	// Layout vertical gridlines.
 	for i := range g.parent.vGridlines {
-		x := float32(float64(i) * g.parent.DisplayConfig.GridSpacing.Float() * float64(g.parent.DisplayConfig.Scale))
+		x := float32(float64(i) * float64(g.parent.gridSpacing) * float64(g.parent.scale))
 		var top float32 = 0
-		var bottom float32 = g.parent.Controller.Plan.Box.GetHeight() * g.parent.DisplayConfig.Scale
+		var bottom float32 = g.parent.Controller.Plan.Box.GetHeight() * g.parent.scale
 		g.parent.vGridlines[i].Position1 = fyne.NewPos(
 			x,
 			top,
@@ -219,12 +233,12 @@ func (g gardenRenderer) Layout(s fyne.Size) {
 	for i := range g.parent.features {
 		box := g.parent.Controller.Plan.Features[i].Box
 		g.parent.features[i].Resize(fyne.NewSize(
-			box.Size.X*g.parent.DisplayConfig.Scale,
-			box.Size.Y*g.parent.DisplayConfig.Scale,
+			box.Size.X*g.parent.scale,
+			box.Size.Y*g.parent.scale,
 		))
 		g.parent.features[i].Move(fyne.NewPos(
-			box.Location.X*g.parent.DisplayConfig.Scale,
-			box.Location.Y*g.parent.DisplayConfig.Scale,
+			box.Location.X*g.parent.scale,
+			box.Location.Y*g.parent.scale,
 		))
 	}
 
@@ -234,8 +248,8 @@ func (g gardenRenderer) Layout(s fyne.Size) {
 func (g gardenRenderer) MinSize() fyne.Size {
 	size := g.parent.Controller.Plan.Box.Size
 	return fyne.NewSize(
-		size.X*g.parent.DisplayConfig.Scale,
-		size.Y*g.parent.DisplayConfig.Scale,
+		size.X*g.parent.scale,
+		size.Y*g.parent.scale,
 	)
 }
 
