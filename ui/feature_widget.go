@@ -39,53 +39,6 @@ type FeatureWidget struct {
 	OnTapped        func()
 }
 
-// Implement the Tappable interface to define click behavior.
-func (fw *FeatureWidget) Tapped(e *fyne.PointEvent) {
-	fw.Controller.SelectFeature(fw.FeatureID)
-	fw.OnTapped()
-}
-func (fw *FeatureWidget) Dragged(e *fyne.DragEvent) {
-	boxDelta := geometry.NewBox(
-		e.Dragged.DX/fw.DisplayConfig.Scale,
-		e.Dragged.DY/fw.DisplayConfig.Scale,
-		0,
-		0,
-	)
-	fw.Controller.MoveResizeFeature(fw.FeatureID, &boxDelta)
-	fw.OnDragged(e)
-}
-func (fw *FeatureWidget) DragEnd() {
-	fw.OnDragEnd()
-}
-
-func (fw *FeatureWidget) HandleDragged(edge geometry.BoxEdge, e *fyne.DragEvent) {
-	dx := e.Dragged.DX / fw.DisplayConfig.Scale
-	dy := e.Dragged.DY / fw.DisplayConfig.Scale
-	dbox := geometry.NewBoxZero()
-
-	// Handle edge cases (lol)
-	switch edge {
-	case geometry.TOP:
-		dbox.Location.Y = dy
-		dbox.Size.Y = -dy
-	case geometry.BOTTOM:
-		dbox.Size.Y = dy
-	case geometry.LEFT:
-		dbox.Location.X = dx
-		dbox.Size.X = -dx
-	case geometry.RIGHT:
-		dbox.Size.X = dx
-	}
-
-	// Add box delta.
-	fw.Controller.MoveResizeFeature(fw.FeatureID, &dbox)
-	fw.OnHandleDragged(edge, e)
-}
-
-func (fw *FeatureWidget) HandleDragEnd(edge geometry.BoxEdge) {
-	fw.OnHandleDragEnd(edge)
-}
-
 // Create a new widget representing a landscaping feature.
 func NewFeatureWidget(id models.FeatureID, controller *controllers.PlanController, displayConfig *models.DisplayConfig) *FeatureWidget {
 	fw := FeatureWidget{
@@ -136,6 +89,53 @@ func NewFeatureWidget(id models.FeatureID, controller *controllers.PlanControlle
 	fw.ExtendBaseWidget(&fw)
 
 	return &fw
+}
+
+// Implement the Tappable interface to define click behavior.
+func (fw *FeatureWidget) Tapped(e *fyne.PointEvent) {
+	fw.Controller.SelectFeature(fw.FeatureID)
+	fw.OnTapped()
+}
+func (fw *FeatureWidget) Dragged(e *fyne.DragEvent) {
+	boxDelta := geometry.NewBox(
+		e.Dragged.DX/fw.DisplayConfig.Scale,
+		e.Dragged.DY/fw.DisplayConfig.Scale,
+		0,
+		0,
+	)
+	fw.Controller.MoveResizeFeature(fw.FeatureID, &boxDelta)
+	fw.OnDragged(e)
+}
+func (fw *FeatureWidget) DragEnd() {
+	fw.OnDragEnd()
+}
+
+func (fw *FeatureWidget) HandleDragged(edge geometry.BoxEdge, e *fyne.DragEvent) {
+	dx := e.Dragged.DX / fw.DisplayConfig.Scale
+	dy := e.Dragged.DY / fw.DisplayConfig.Scale
+	dbox := geometry.NewBoxZero()
+
+	// Handle edge cases (lol)
+	switch edge {
+	case geometry.TOP:
+		dbox.Location.Y = dy
+		dbox.Size.Y = -dy
+	case geometry.BOTTOM:
+		dbox.Size.Y = dy
+	case geometry.LEFT:
+		dbox.Location.X = dx
+		dbox.Size.X = -dx
+	case geometry.RIGHT:
+		dbox.Size.X = dx
+	}
+
+	// Add box delta.
+	fw.Controller.MoveResizeFeature(fw.FeatureID, &dbox)
+	fw.OnHandleDragged(edge, e)
+}
+
+func (fw *FeatureWidget) HandleDragEnd(edge geometry.BoxEdge) {
+	fw.OnHandleDragEnd(edge)
 }
 
 func (featureWidget *FeatureWidget) CreateRenderer() fyne.WidgetRenderer {
