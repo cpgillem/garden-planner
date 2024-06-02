@@ -21,6 +21,9 @@ type SettingsWindow struct {
 
 	okButton     *widget.Button
 	cancelButton *widget.Button
+
+	// Events
+	OnOk func()
 }
 
 func NewSettingsWindow(instance *GardenPlanner) SettingsWindow {
@@ -34,6 +37,7 @@ func NewSettingsWindow(instance *GardenPlanner) SettingsWindow {
 		),
 		okButton:     widget.NewButton("OK", func() {}),
 		cancelButton: widget.NewButton("Cancel", func() {}),
+		OnOk:         func() {},
 	}
 
 	// Events
@@ -101,8 +105,9 @@ func (w *SettingsWindow) OK() {
 	w.instance.App.Preferences().SetString("grid_spacing", w.gridEntry.GetValueAsText())
 
 	w.Close()
+	w.OnOk()
 }
 
 func (w *SettingsWindow) Close() {
-	w.window.Hide()
+	w.window.Close()
 }

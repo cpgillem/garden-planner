@@ -138,6 +138,16 @@ func (g *GardenWidget) CalculateGridlines() {
 	}
 }
 
+func (g *GardenWidget) SetScale(s float32) {
+	g.scale = s
+	g.Refresh()
+}
+
+func (g *GardenWidget) SetGridSpacing(s float32) {
+	g.gridSpacing = s
+	g.Refresh()
+}
+
 // Opens a plan for viewing.
 func (g *GardenWidget) OpenPlan(controller *controllers.PlanController) {
 	g.Controller = controller
@@ -162,8 +172,7 @@ func (w *GardenWidget) CreateRenderer() fyne.WidgetRenderer {
 // On scroll, adjust the scale.
 func (w *GardenWidget) Scrolled(e *fyne.ScrollEvent) {
 	adjDY := e.Scrolled.DY / 250
-	w.scale += adjDY
-	w.Refresh()
+	w.SetScale(w.scale + adjDY)
 }
 
 type gardenRenderer struct {
@@ -277,6 +286,8 @@ func (g gardenRenderer) Objects() []fyne.CanvasObject {
 
 // Refresh implements fyne.WidgetRenderer.
 func (g gardenRenderer) Refresh() {
+	g.parent.CalculateGridlines()
+
 	for i := range g.parent.features {
 		g.parent.features[i].Refresh()
 	}

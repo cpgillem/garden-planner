@@ -63,22 +63,30 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 
 	// Main Window
 	displayConfig := models.NewDisplayConfig()
+	formatter := ui.NewFormatter()
+	gridSpacing, err := formatter.ToDimensionBaseUnit(
+		mainApp.Preferences().StringWithFallback("grid_spacing", "12 in"),
+		displayConfig.BaseUnit,
+	)
+	if err != nil {
+		gridSpacing = units.NewValue(12, units.Inch)
+	}
 	sidebar := container.NewVBox()
 	blankPlan := models.NewPlan()
 	planController := controllers.NewPlanController(blankPlan)
-	gardenWidget := ui.NewGardenWidget(&planController, displayConfig.Scale, float32(displayConfig.GridSpacing.Float()))
+	gardenWidget := ui.NewGardenWidget(
+		&planController,
+		float32(mainApp.Preferences().FloatWithFallback("display_scale", 2)),
+		float32(gridSpacing.Float()),
+	)
 	toolbar := widget.NewToolbar()
 	statusBar := widget.NewLabel("")
 	mainContainer := container.NewBorder(toolbar, nil, sidebar, nil, gardenWidget)
 	propertyTable := container.New(layout.NewFormLayout())
-	formatter := ui.NewFormatter()
 	featureTools := container.NewHBox()
 	boxEditor := ui.NewBoxEditor(geometry.NewBoxZero(), ui.AnyUnit, formatter)
 
 	mainWindow.SetContent(mainContainer)
-	mainApp.Preferences().AddChangeListener(func() {
-		fmt.Println(mainApp.Preferences().IntWithFallback("test", 13))
-	})
 
 	// Create new app instance
 	gardenPlanner := GardenPlanner{
@@ -105,7 +113,18 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 	// Other windows
 	gardenPlanner.SettingsWindow = NewSettingsWindow(&gardenPlanner)
 
+	mainApp.Preferences().AddChangeListener(gardenPlanner.RereadSettings)
+
 	return &gardenPlanner
+}
+
+// After settings are changed, make the appropriate updates.
+func (p *GardenPlanner) RereadSettings() {
+	spacing := p.App.Preferences().StringWithFallback("grid_spacing", "12 in")
+	spacingUnit, err := p.Formatter.ToDimensionBaseUnit(spacing, p.DisplayConfig.BaseUnit)
+	if err == nil {
+		p.GardenWidget.SetGridSpacing(float32(spacingUnit.Float()))
+	}
 }
 
 func (p *GardenPlanner) Start() {
