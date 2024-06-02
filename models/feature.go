@@ -29,16 +29,3 @@ func NewFeature(propMap map[string]Property, template *FeatureTemplate) Feature 
 
 	return f
 }
-
-// Creates a new plant feature according to the plant template.
-func NewPlantFeature(name string, box geometry.Box, plantType *PlantType) *Feature {
-	plant := Feature{
-		Name: name,
-		Box:  box,
-	}
-
-	plant.Properties["plant_spacing"] = plantType.Spread
-	plant.Properties["row_width"] = plantType.Spread
-
-	return &plant
-}

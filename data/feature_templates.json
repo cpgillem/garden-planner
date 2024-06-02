@@ -16,7 +16,8 @@
         },
         "properties": [
             "plant_spacing",
-            "row_width"
+            "row_width",
+            "plant_id"
         ]
     }
 ]

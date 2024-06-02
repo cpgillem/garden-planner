@@ -1,0 +1,22 @@
+[
+    {
+        "id": 1,
+        "name": "Potato",
+        "interactions": [
+            {
+                "target_plant": 2,
+                "interaction_type": 1
+            }
+        ]
+    },
+    {
+        "id": 2,
+        "name": "Bean",
+        "interactions": []
+    },
+    {
+        "id": 2,
+        "name": "Bean",
+        "interactions": []
+    }
+]

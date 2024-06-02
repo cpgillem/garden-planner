@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -34,7 +35,8 @@ type GardenPlanner struct {
 	GardenWidget  *ui.GardenWidget
 
 	// Controllers
-	PlanController controllers.PlanController
+	PlanController  controllers.PlanController
+	PlantController controllers.PlantController
 
 	// Permanent Widgets
 	Toolbar       *widget.Toolbar
@@ -54,7 +56,7 @@ type GardenPlanner struct {
 }
 
 // Creates a new instance of the app.
-func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
+func NewGardenPlanner() *GardenPlanner {
 	// Setup UI elements
 	mainApp := app.NewWithID("net.cpgworld.garden-planner.preferences")
 
@@ -62,6 +64,16 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 	mainWindow := mainApp.NewWindow("Garden Planner")
 
 	// Main Window
+	gardenData := NewGardenData()
+
+	// Load plant data.
+	plants, err := ReadObjectFromFile[[]models.Plant]("data/plants.json")
+	if err != nil {
+		log.Fatal("Could not load plant data.")
+		plants = &[]models.Plant{}
+	}
+	plantController := controllers.NewPlantController(plants)
+
 	displayConfig := models.NewDisplayConfig()
 	formatter := ui.NewFormatter()
 	gridSpacing, err := formatter.ToDimensionBaseUnit(
@@ -90,20 +102,21 @@ func NewGardenPlanner(gardenData *GardenData) *GardenPlanner {
 
 	// Create new app instance
 	gardenPlanner := GardenPlanner{
-		App:            mainApp,
-		Window:         mainWindow,
-		MainContainer:  mainContainer,
-		Sidebar:        sidebar,
-		BoxEditor:      boxEditor,
-		Toolbar:        toolbar,
-		StatusBar:      statusBar,
-		GardenWidget:   gardenWidget,
-		FeatureTools:   featureTools,
-		PropertyTable:  propertyTable,
-		GardenData:     gardenData,
-		Formatter:      formatter,
-		PlanController: planController,
-		DisplayConfig:  &displayConfig,
+		App:             mainApp,
+		Window:          mainWindow,
+		MainContainer:   mainContainer,
+		Sidebar:         sidebar,
+		BoxEditor:       boxEditor,
+		Toolbar:         toolbar,
+		StatusBar:       statusBar,
+		GardenWidget:    gardenWidget,
+		FeatureTools:    featureTools,
+		PropertyTable:   propertyTable,
+		GardenData:      gardenData,
+		Formatter:       formatter,
+		PlanController:  planController,
+		PlantController: plantController,
+		DisplayConfig:   &displayConfig,
 	}
 
 	// Setup Toolbar

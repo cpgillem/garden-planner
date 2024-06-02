@@ -8,7 +8,6 @@ import (
 
 type GardenData struct {
 	Properties       map[string]models.Property
-	PlantTypes       map[uint]models.PlantType
 	FeatureTemplates map[string]models.FeatureTemplate
 }
 
@@ -17,7 +16,6 @@ func NewGardenData() *GardenData {
 	// Start with empty data.
 	gardenData := GardenData{
 		Properties:       map[string]models.Property{},
-		PlantTypes:       map[uint]models.PlantType{},
 		FeatureTemplates: map[string]models.FeatureTemplate{},
 	}
 
@@ -30,17 +28,6 @@ func NewGardenData() *GardenData {
 	// Map properties for easy retrieval.
 	for _, p := range *properties {
 		gardenData.Properties[p.Name] = p
-	}
-
-	// Load plant type data.
-	plantTypes, err := ReadObjectFromFile[[]models.PlantType]("data/plant_types.json")
-	if err != nil {
-		fmt.Println("Could not load plant data.")
-	}
-
-	// Map plant types to their IDs.
-	for _, pt := range *plantTypes {
-		gardenData.PlantTypes[pt.ID] = pt
 	}
 
 	// Load templates for landscaping features.
